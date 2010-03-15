@@ -139,6 +139,15 @@ class SpecCommandA(BaseSpecCommand):
     def __init__(self, *args, **kwargs):
         self.__callback = None
         self.__error_callback = None
+        self.__callbacks = {
+          'connected': None,
+          'disconnected': None,
+          'statusChanged': None,
+        }
+        callbacks = kwargs.get("callbacks", {})
+        for cb_name in self.__callbacks.iterkeys():
+          if callable(callbacks.get(cb_name)):
+            self.__callbacks[cb_name] = SpecEventsDispatcher.callableObjectRef(callbacks[cb_name])
 
         BaseSpecCommand.__init__(self, *args, **kwargs)
 
@@ -152,8 +161,20 @@ class SpecCommandA(BaseSpecCommand):
         self.specVersion = specVersion
 
         SpecEventsDispatcher.connect(self.connection, 'connected', self.connected)
+        cb = self.__callbacks.get("connected")
+        if cb is not None:
+          cb = cb()
+          SpecEventsDispatcher.connect(self.connection, 'connected', cb)
         SpecEventsDispatcher.connect(self.connection, 'disconnected', self.disconnected)
+        cb = self.__callbacks.get("disconnected")
+        if cb is not None:
+          cb = cb()
+          SpecEventsDispatcher.connect(self.connection, 'disconnected', cb)
         self.connection.registerChannel("status/ready", self.statusChanged)
+        cb = self.__callbacks.get("statusChanged")
+        if cb is not None:
+          cb = cb()
+          SpecEventsDispatcher.connect(self.connection, 'statusChanged', cb)
 
         if self.connection.isSpecConnected():
             self.connected()

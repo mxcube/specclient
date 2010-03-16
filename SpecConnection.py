@@ -112,7 +112,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         self.outputStrings = []
         self.simulationMode = False
 
-
         # some shortcuts
         self.macro       = self.send_msg_cmd_with_return
         self.macro_noret = self.send_msg_cmd
@@ -139,10 +138,8 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         self.registerChannel('error', self.error, dispatchMode = SpecEventsDispatcher.FIREEVENT)
         self.registerChannel('status/simulate', self.simulationStatusChanged)
 
-
     def __str__(self):
         return '<connection to Spec, host=%s, port=%s>' % (self.host, self.port or self.scanname)
-
 
     def makeConnection(self):
         """Establish a connection to Spec
@@ -155,19 +152,20 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         if not self.connected:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(0.2)
-
             if self.scanport:
-                if self.port is None or self.port > MAX_PORT:
-                    self.port = MIN_PORT
-                else:
-                    self.port += 1
+              self.port = MIN_PORT
 
-            try:
-                if s.connect_ex( (self.host, self.port) ) == 0:
-                    self.set_socket(s)
-            except socket.error, err:
-                pass #exception could be 'host not found' for example, we ignore it
-
+            while not self.scanport or self.port < MAX_PORT:
+              try:
+                 if s.connect_ex( (self.host, self.port) ) == 0:
+                   self.set_socket(s)
+                   break
+              except socket.error, err:
+                 pass #exception could be 'host not found' for example, we ignore it
+              if self.scanport:
+                self.port += 1 
+              else:
+                break
 
     def registerChannel(self, chanName, receiverSlot, registrationFlag = SpecChannel.DOREG, dispatchMode = SpecEventsDispatcher.UPDATEVALUE):
         """Register a channel

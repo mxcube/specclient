@@ -193,15 +193,16 @@ class SpecMotorA:
     def __motorPositionChanged(self, absolutePosition):
         if self.__old_position is None:
            self.__old_position = absolutePosition
-           self.motorPositionChanged(absolutePosition)
         else:
            if math.fabs(absolutePosition - self.__old_position) > 1E-6:
               self.__old_position = absolutePosition
-              self.motorPositionChanged(absolutePosition)
-              if self.__callbacks.get("motorPositionChanged"):
-                cb = self.__callbacks["motorPositionChanged"]()
-                if cb is not None:
-                  cb(absolutePosition)
+           else:
+              return
+        self.motorPositionChanged(absolutePosition)
+        if self.__callbacks.get("motorPositionChanged"):
+          cb = self.__callbacks["motorPositionChanged"]()
+          if cb is not None:
+             cb(absolutePosition)
 
 
 

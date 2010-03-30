@@ -129,7 +129,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
             self.port = int(self.port)
         except:
             self.scanname = self.port
-            self.port = MIN_PORT
+            self.port = None
             self.scanport = True
 
         #

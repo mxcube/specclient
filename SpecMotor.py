@@ -37,6 +37,8 @@ class SpecMotorA:
         self.chanNamePrefix = ''
         self.connection = None
         self.__old_position = None
+        # the callbacks listed below can be set directly using the 'callbacks' keyword argument ;
+        # when the event occurs, the corresponding callback will be called automatically
 	self.__callbacks = {
           'connected': None,
           'disconnected': None,

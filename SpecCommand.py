@@ -22,7 +22,7 @@ import SpecWaitObject
 
 class BaseSpecCommand:
     """Base class for SpecCommand objects"""
-    def __init__(self, command = None, connection = None):
+    def __init__(self, command = None, connection = None, callbacks = None):
         self.command = None
         self.connection = None
         self.specVersion = None

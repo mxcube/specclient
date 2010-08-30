@@ -218,7 +218,7 @@ class SpecCommandA(BaseSpecCommand):
         if reply.error:
             if callable(self.__error_callback):
                 try:
-                    self.__error_callback()
+                    self.__error_callback(reply.error)
                 except:
                     logging.getLogger("SpecClient").exception("Error while calling error callback (command=%s,spec version=%s)", self.command, self.specVersion)
                 self.__error_callback = None

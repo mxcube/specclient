@@ -154,14 +154,14 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         a port defined in the range from MIN_PORT to MAX_PORT
         """
         if not self.connected:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.2)
             if self.scanport:
               if self.port is None or self.port > MAX_PORT:
                 self.port = MIN_PORT
               else:
                 self.port += 1
             while not self.scanport or self.port < MAX_PORT:
+              s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+              s.settimeout(0.2)
               try:
                  if s.connect_ex( (self.host, self.port) ) == 0:
                    self.set_socket(s)

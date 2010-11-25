@@ -163,9 +163,12 @@ class BaseSpecRequestHandler(asyncore.dispatcher):
         self.sendq.append(SpecMessage.error_message(replyID, name, data, version = self.clientVersion, order=self.clientOrder))
 
 
-    def send_msg_event(self, chanName, value):
+    def send_msg_event(self, chanName, value, broadcast=True):
         self.sendq.append(SpecMessage.msg_event(chanName, value, version = self.clientVersion, order=self.clientOrder))
-
+        if broadcast:
+          for client in self.server.clients:
+            client.send_msg_event(chanName, value, broadcast=False)
+          
 
 class SpecServer(asyncore.dispatcher):
     def __init__(self, host, name, handler = BaseSpecRequestHandler):

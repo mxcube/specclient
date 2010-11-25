@@ -45,6 +45,7 @@ class BaseSpecRequestHandler(asyncore.dispatcher):
                     self.clientOrder = self.message.packedHeaderDataFormat[0]
                     print "client byte order: ", self.clientOrder
                     self.clientVersion = self.message.vers
+                    self.clientName = self.message.name
                     self.send_hello_reply(self.message.sn, str(self.server.name))
                 else:
                     received_messages.append(self.message)

@@ -43,10 +43,11 @@ class SpecChannel:
         if channelName.startswith("var/") and '/' in channelName[4:]:
             l = channelName.split('/')
             self.spec_chan_name = "/".join((l[0], l[1]))
-            if self.spec_chan_name in SpecChannel.channel_aliases:
-                SpecChannel.channel_aliases[self.spec_chan_name].append(self.name)
-            else:
-                SpecChannel.channel_aliases[self.spec_chan_name] = [self.name]
+            if registrationFlag != DONTREG:
+              if self.spec_chan_name in SpecChannel.channel_aliases:
+                  SpecChannel.channel_aliases[self.spec_chan_name].append(self.name)
+              else:
+                  SpecChannel.channel_aliases[self.spec_chan_name] = [self.name]
 
             if len(l)==3:
                 self.access1=l[2]
@@ -56,7 +57,7 @@ class SpecChannel:
                 self.access2=l[3]
         else:
             self.spec_chan_name = self.name
-            if not self.spec_chan_name in SpecChannel.channel_aliases:
+            if registrationFlag != DONTREG and not self.spec_chan_name in SpecChannel.channel_aliases:
                 SpecChannel.channel_aliases[self.spec_chan_name]=[self.name]
             self.access1=None
             self.access2=None

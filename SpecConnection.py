@@ -309,7 +309,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         offset = 0
 
         while offset < len(sbuffer):
-            if self.message is None:
+            if self.message is None or self.message.isComplete():
                 self.message = SpecMessage.message(version = self.serverVersion)
 
             consumedBytes = self.message.readFromStream(sbuffer[offset:])
@@ -348,7 +348,10 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
                         self.connected = False
                         self.close()
                         self.state = DISCONNECTED
+<<<<<<< HEAD
                 self.message = None 
+=======
+>>>>>>> f3fa40c7a776badcf1563bf9ed9c2803c36ec1dd
 
         self.receivedStrings = [ s[offset:] ]
 

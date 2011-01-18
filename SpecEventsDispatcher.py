@@ -23,10 +23,12 @@ def robustApply(slot, arguments = ()):
 
     if hasattr(slot, 'im_func'):
         # an instance method
-        n_args = slot.im_func.func_code.co_argcount - 1
+        n_default_args = slot.im_func.func_defaults and len(slot.im_func.func_defaults) or 0
+        n_args = slot.im_func.func_code.co_argcount - n_default_args - 1
     else:
         try:
-            n_args = slot.func_code.co_argcount
+            n_default_args = slot.func_defaults and len(slot.func_defaults) or 0
+            n_args = slot.func_code.co_argcount - n_default_args
         except:
             raise SpecClientDispatcherError, 'Unknown slot type %s %s' % (repr(slot), type(slot))
 

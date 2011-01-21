@@ -22,7 +22,7 @@ class SpecChannel:
     Signals:
     valueChanged(channelValue, channelName) -- emitted when the channel gets updated
     """
-    channel_aliases = {}
+    #channel_aliases = {}
 
     def __init__(self, connection, channelName, registrationFlag = DOREG):
         """Constructor
@@ -43,11 +43,11 @@ class SpecChannel:
         if channelName.startswith("var/") and '/' in channelName[4:]:
             l = channelName.split('/')
             self.spec_chan_name = "/".join((l[0], l[1]))
-            if registrationFlag != DONTREG:
-              if self.spec_chan_name in SpecChannel.channel_aliases:
-                  SpecChannel.channel_aliases[self.spec_chan_name].append(self.name)
-              else:
-                  SpecChannel.channel_aliases[self.spec_chan_name] = [self.name]
+            #if registrationFlag != DONTREG:
+            #  if self.spec_chan_name in SpecChannel.channel_aliases:
+            #      SpecChannel.channel_aliases[self.spec_chan_name].append(self.name)
+            #  else:
+            #      SpecChannel.channel_aliases[self.spec_chan_name] = [self.name]
 
             if len(l)==3:
                 self.access1=l[2]
@@ -57,8 +57,8 @@ class SpecChannel:
                 self.access2=l[3]
         else:
             self.spec_chan_name = self.name
-            if registrationFlag != DONTREG and not self.spec_chan_name in SpecChannel.channel_aliases:
-                SpecChannel.channel_aliases[self.spec_chan_name]=[self.name]
+            #if registrationFlag != DONTREG and not self.spec_chan_name in SpecChannel.channel_aliases:
+            #    SpecChannel.channel_aliases[self.spec_chan_name]=[self.name]
             self.access1=None
             self.access2=None
         self.registrationFlag = registrationFlag
@@ -111,6 +111,9 @@ class SpecChannel:
         Registering a channel means telling the server we want to receive
         update events when a channel value changes on the server side.
         """
+        if self.spec_chan_name != self.name:
+            return
+
         connection = self.connection()
 
         if connection is not None:

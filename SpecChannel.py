@@ -114,7 +114,7 @@ class SpecChannel:
             self.registered = True
 
 
-    def update(self, channelValue, deleted = False):
+    def update(self, channelValue, deleted = False,force=False):
         """Update channel's value and emit the 'valueChanged' signal."""
         if type(channelValue) == types.DictType and self.access1 is not None:
             if self.access1 in channelValue:
@@ -122,7 +122,7 @@ class SpecChannel:
                     SpecEventsDispatcher.emit(self, 'valueChanged', (None, self.name, ))
                 else:
                     if self.access2 is None:
-                        if self.value is None or self.value != channelValue[self.access1]: 
+                        if force or self.value is None or self.value != channelValue[self.access1]: 
                             self.value = channelValue[self.access1]
                             SpecEventsDispatcher.emit(self, 'valueChanged', (self.value, self.name, ))
                     else:
@@ -130,7 +130,7 @@ class SpecChannel:
                             if deleted:
                                 SpecEventsDispatcher.emit(self, 'valueChanged', (None, self.name, ))
                             else:
-                                if self.value is None or self.value != channelValue[self.access1][self.access2]:
+                                if force or self.value is None or self.value != channelValue[self.access1][self.access2]:
                                     self.value = channelValue[self.access1][self.access2]
                                     SpecEventsDispatcher.emit(self, 'valueChanged', (self.value, self.name, ))
             return

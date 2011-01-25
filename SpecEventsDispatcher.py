@@ -1,12 +1,11 @@
-#$Id: SpecEventsDispatcher.py,v 1.4 2005/09/27 13:54:19 guijarro Exp $
-
-#import logging
 import weakref
 import exceptions
 import Queue
 import time
+import threading
 
 (UPDATEVALUE, FIREEVENT) = (1, 2)
+MAIN_THREAD = threading.current_thread()
 
 class SpecClientDispatcherError(exceptions.Exception):
     def __init__(self, args=None):
@@ -325,9 +324,11 @@ def disconnect(sender, signal, slot):
 
 def emit(sender, signal, arguments = ()):
     eventsToDispatch.put(Event(sender, signal, arguments))
+    if threading.current_thread() == MAIN_THREAD:
+        dispatch(-1)
 
 
-def dispatch():
+def dispatch(max_time_in_s=1):
     t0 = time.time()
     while 1:
         try:
@@ -336,7 +337,9 @@ def dispatch():
             break
         else:
             receiver(args)
-            if (time.time()-t0) >= 1:
+            if max_time_in_s < 0:
+              continue
+            elif (time.time()-t0) >= max_time_in_s:
               break
 
 

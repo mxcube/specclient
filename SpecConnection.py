@@ -200,32 +200,25 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
 
         chanName = str(chanName)
        
-        try:
-          if not chanName in self.registeredChannels:
-              print 'creating channel',chanName
-              channel = SpecChannel.SpecChannel(self, chanName, registrationFlag)
-              if channel.spec_chan_name != chanName:
-                  def valueChanged(value, chanName=chanName):
-                      print 'value changed', value, chanName
-                      channel = self.registeredChannels[chanName]
-                      channel.update(value)
-                  #self.aliasedChannels.setdefault(channel.spec_chan_name, []).append(chanName)
-                  self.aliasedChannels[chanName]=valueChanged
-                  self.registerChannel(channel.spec_chan_name, valueChanged, registrationFlag, dispatchMode)
+        if not chanName in self.registeredChannels:
+            channel = SpecChannel.SpecChannel(self, chanName, registrationFlag)
+            if channel.spec_chan_name != chanName:
+                def valueChanged(value, chanName=chanName):
+                    channel = self.registeredChannels[chanName]
+                    channel.update(value)
+                self.aliasedChannels[chanName]=valueChanged
+                self.registerChannel(channel.spec_chan_name, valueChanged, registrationFlag, dispatchMode)
 
-              self.registeredChannels[chanName] = channel
-          else:
-            channel = self.registeredChannels[chanName]
+            self.registeredChannels[chanName] = channel
+        else:
+          channel = self.registeredChannels[chanName]
 
-          SpecEventsDispatcher.connect(channel, 'valueChanged', receiverSlot, dispatchMode)
+        SpecEventsDispatcher.connect(channel, 'valueChanged', receiverSlot, dispatchMode)
 
-          channelValue = self.registeredChannels[channel.spec_chan_name].value
-          if channelValue is not None:
-              # we received a value, so emit an update signal
-              channel.update(channelValue)
-        except Exception, e:
-          print e
-          logging.exception('bla')
+        channelValue = self.registeredChannels[channel.spec_chan_name].value
+        if channelValue is not None:
+            # we received a value, so emit an update signal
+            channel.update(channelValue,force=True)
 
     def unregisterChannel(self, chanName):
         """Unregister a channel

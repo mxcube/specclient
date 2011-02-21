@@ -5,7 +5,7 @@ import time
 import threading
 
 (UPDATEVALUE, FIREEVENT) = (1, 2)
-MAIN_THREAD = threading.current_thread()
+MAIN_THREAD = threading.currentThread()
 
 class SpecClientDispatcherError(exceptions.Exception):
     def __init__(self, args=None):

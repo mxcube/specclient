@@ -313,6 +313,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         # let Python display exception like it wants!
         sys.excepthook(exception, error_string, tb)
 
+
     def handle_read(self):
         """Handle 'read' events on socket
 
@@ -433,7 +434,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         cmd -- command string, i.e. '1+1'
         """
         if self.isSpecConnected():
-            import sys
             try:
                 caller = sys._getframe(1).f_locals['self']
             except KeyError:
@@ -454,7 +454,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
             logging.getLogger('SpecClient').error('Cannot execute command in Spec : feature is available since Spec server v3 only')
         else:
             if self.isSpecConnected():
-                import sys
                 try:
                     caller = sys._getframe(1).f_locals['self']
                 except KeyError:
@@ -500,7 +499,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         chanName -- a string representing the channel name, i.e. 'var/toto'
         """
         if self.isSpecConnected():
-            import sys
             try:
                 caller = sys._getframe(1).f_locals['self']
             except KeyError:

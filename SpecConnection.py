@@ -334,35 +334,41 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
             offset += consumedBytes
 
             if self.message.isComplete():
-                # dispatch incoming message
-                if self.message.cmd == SpecMessage.REPLY:
-                    replyID = self.message.sn
+                try:
+                    # dispatch incoming message
+                    if self.message.cmd == SpecMessage.REPLY:
+                        replyID = self.message.sn
 
-                    if replyID > 0:
-                        try:
-                            reply = self.registeredReplies[replyID]
-                        except:
-                            logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
+                        if replyID > 0:
+                            try:
+                                reply = self.registeredReplies[replyID]
+                            except:
+                                logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
+                            else:
+                                del self.registeredReplies[replyID]
+
+                                reply.update(self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
+
+                                #SpecEventsDispatcher.emit(self, 'replyFromSpec', (replyID, reply, ))
+                    elif self.message.cmd == SpecMessage.EVENT:
+                        self.registeredChannels[self.message.name].update(self.message.data, self.message.flags == SpecMessage.DELETED)
+                    elif self.message.cmd == SpecMessage.HELLO_REPLY:
+                        if self.checkourversion(self.message.name):
+                            self.serverVersion = self.message.vers #header version
+                            #self.state = CONNECTED
+                            self.specConnected()
                         else:
-                            del self.registeredReplies[replyID]
-
-                            reply.update(self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
-
-                            #SpecEventsDispatcher.emit(self, 'replyFromSpec', (replyID, reply, ))
-                elif self.message.cmd == SpecMessage.EVENT:
-                    self.registeredChannels[self.message.name].update(self.message.data, self.message.flags == SpecMessage.DELETED)
-                elif self.message.cmd == SpecMessage.HELLO_REPLY:
-                    if self.checkourversion(self.message.name):
-                        self.serverVersion = self.message.vers #header version
-                        #self.state = CONNECTED
-                        self.specConnected()
-                    else:
-                        self.serverVersion = None
-                        self.connected = False
-                        self.close()
-                        self.state = DISCONNECTED
-                self.message = None 
-
+                            self.serverVersion = None
+                            self.connected = False
+                            self.close()
+                            self.state = DISCONNECTED
+                except:
+                    self.message = None
+                    self.receivedStrings = [ s[offset:] ]
+                    #raise
+                else:
+                    self.message = None
+                                   
         self.receivedStrings = [ s[offset:] ]
 
 

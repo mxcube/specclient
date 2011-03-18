@@ -2,10 +2,10 @@ import weakref
 import exceptions
 import Queue
 import time
-import threading
+#import threading
 
 (UPDATEVALUE, FIREEVENT) = (1, 2)
-MAIN_THREAD = threading.currentThread()
+#MAIN_THREAD = threading.currentThread()
 
 class SpecClientDispatcherError(exceptions.Exception):
     def __init__(self, args=None):
@@ -324,8 +324,8 @@ def disconnect(sender, signal, slot):
 
 def emit(sender, signal, arguments = ()):
     eventsToDispatch.put(Event(sender, signal, arguments))
-    if threading.current_thread() == MAIN_THREAD:
-        dispatch(-1)
+    #if threading.current_thread() == MAIN_THREAD:
+    #    dispatch(-1)
 
 
 def dispatch(max_time_in_s=1):

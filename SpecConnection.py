@@ -25,6 +25,7 @@ import SpecChannel
 import SpecMessage
 import SpecReply
 import traceback
+import sys
 
 asyncore.dispatcher.ac_in_buffer_size = 32768 #32 ko input buffer
 
@@ -308,8 +309,9 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
 
     def handle_error(self):
         """Handle an uncaught error."""
-        return
-
+        exception, error_string, tb = sys.exc_info()
+        # let Python display exception like it wants!
+        sys.excepthook(exception, error_string, tb)
 
     def handle_read(self):
         """Handle 'read' events on socket
@@ -348,7 +350,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
                                 del self.registeredReplies[replyID]
 
                                 reply.update(self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
-
                                 #SpecEventsDispatcher.emit(self, 'replyFromSpec', (replyID, reply, ))
                     elif self.message.cmd == SpecMessage.EVENT:
                         self.registeredChannels[self.message.name].update(self.message.data, self.message.flags == SpecMessage.DELETED)
@@ -365,7 +366,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
                 except:
                     self.message = None
                     self.receivedStrings = [ s[offset:] ]
-                    #raise
+                    raise
                 else:
                     self.message = None
                                    

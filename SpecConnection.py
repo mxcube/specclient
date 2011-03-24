@@ -209,7 +209,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
             if channel.spec_chan_name != chanName:
                 def valueChanged(value, chanName=chanName):
                     channel = self.registeredChannels[chanName]
-                    channel.update(value,force=True)
+                    channel.update(value) #,force=True)
                 self.aliasedChannels[chanName]=valueChanged
                 self.registerChannel(channel.spec_chan_name, valueChanged, registrationFlag, dispatchMode)
           else:

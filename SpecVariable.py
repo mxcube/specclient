@@ -160,7 +160,7 @@ class SpecVariableA:
         self.connection.registerChannel(self.channelName, cb, dispatchMode = dispatchMode)
 
         if self.connection.isSpecConnected():
-            self.connected()
+            self._connected()
 
 
     def isSpecConnected(self):

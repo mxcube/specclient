@@ -177,22 +177,21 @@ class _SpecConnectionsManager:
     def __init__(self):
         """Constructor"""
         self.connections = {}
-        self.connectionDispatchers = {}
 
     def getFdDispatchersDict(self):
-        connection_dispatcher_keys = self.connectionDispatchers.keys()
-        for k in connection_dispatcher_keys:
-          connection = self.connectionDispatchers.get(k)
-          if connection is not None:
-            connection.makeConnection()
+        connection_keys = self.connections.keys()
         connection_dispatchers = {}
-        for condis in self.connectionDispatchers.itervalues():
-          if condis.socket is not None:
-            try:
-              connection_dispatchers[condis.socket.fileno()]=condis
-            except:
-              # BAD FILE DESCRIPTOR?
-              continue
+        for k in connection_keys:
+          connection = self.connections.get(k)()
+          if connection is not None:
+            condis = connection.dispatcher  
+            condis.makeConnection()
+            if condis.socket is not None:
+                try:
+                   connection_dispatchers[condis.socket.fileno()]=condis
+                except:
+                   # BAD FILE DESCRIPTOR?
+                   continue
         return connection_dispatchers
        
     def poll(self, timeout=0.01):
@@ -221,7 +220,6 @@ class _SpecConnectionsManager:
                 self.closeConnection(connectionName)
 
             self.connections[specVersion] = weakref.ref(con, removeConnection)
-            self.connectionDispatchers[specVersion] = con.dispatcher
         else:
             con = con()
 

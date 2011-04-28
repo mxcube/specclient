@@ -153,11 +153,7 @@ class SpecVariableA:
         #
         # register channel
         #
-        self.connection.registerChannel(self.channelName, self.update, dispatchMode = dispatchMode)
-        cb = self.__callbacks.get("update")
-        if cb is not None:
-          cb = cb()
-        self.connection.registerChannel(self.channelName, cb, dispatchMode = dispatchMode)
+        self.connection.registerChannel(self.channelName, self._update, dispatchMode = dispatchMode)
 
         if self.connection.isSpecConnected():
             self._connected()
@@ -168,11 +164,13 @@ class SpecVariableA:
 
 
     def _connected(self):
-        self.connected()
-        if self.__callbacks.get("connected"):
-          cb = self.__callbacks["connected"]()
-          if cb is not None:
-            cb()
+        try:
+          if self.__callbacks.get("connected"):
+            cb = self.__callbacks["connected"]()
+            if cb is not None:
+              cb()
+        finally:
+            self.connected()
 
 
     def connected(self):
@@ -184,11 +182,13 @@ class SpecVariableA:
 
 
     def _disconnected(self):
-        self.disconnected()
-        if self.__callbacks.get("disconnected"):
-          cb = self.__callbacks["disconnected"]()
-          if cb is not None:
-            cb()
+        try:
+          if self.__callbacks.get("disconnected"):
+            cb = self.__callbacks["disconnected"]()
+            if cb is not None:
+              cb()
+        finally:
+          self.disconnected()
 
 
     def disconnected(self):
@@ -198,6 +198,16 @@ class SpecVariableA:
         """
         pass
 
+
+    def _update(self, value):
+        try:
+          if self.__callbacks.get("update"):
+            cb = self.__callbacks["update"]()
+            if cb is not None:
+              cb(value)
+        finally:
+          self.update(value)
+        
 
     def update(self, value):
         """Callback triggered by a variable update

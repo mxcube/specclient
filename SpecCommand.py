@@ -155,30 +155,18 @@ class SpecCommandA(BaseSpecCommand):
 
     def connectToSpec(self, specVersion, timeout=200):
         if self.connection is not None:
-            SpecEventsDispatcher.disconnect(self.connection, 'connected', self.connected)
-            SpecEventsDispatcher.disconnect(self.connection, 'disconnected', self.disconnected)
+            SpecEventsDispatcher.disconnect(self.connection, 'connected', self._connected)
+            SpecEventsDispatcher.disconnect(self.connection, 'disconnected', self._disconnected)
 
         self.connection = SpecConnectionsManager.SpecConnectionsManager().getConnection(specVersion)
         self.specVersion = specVersion
 
-        SpecEventsDispatcher.connect(self.connection, 'connected', self.connected)
-        cb = self.__callbacks.get("connected")
-        if cb is not None:
-          cb = cb()
-          SpecEventsDispatcher.connect(self.connection, 'connected', cb)
-        SpecEventsDispatcher.connect(self.connection, 'disconnected', self.disconnected)
-        cb = self.__callbacks.get("disconnected")
-        if cb is not None:
-          cb = cb()
-          SpecEventsDispatcher.connect(self.connection, 'disconnected', cb)
-        self.connection.registerChannel("status/ready", self.statusChanged)
-        cb = self.__callbacks.get("statusChanged")
-        if cb is not None:
-          cb = cb()
-          SpecEventsDispatcher.connect(self.connection, 'statusChanged', cb)
+        SpecEventsDispatcher.connect(self.connection, 'connected', self._connected)
+        SpecEventsDispatcher.connect(self.connection, 'disconnected', self._disconnected)
+        self.connection.registerChannel("status/ready", self._statusChanged)
 
         if self.connection.isSpecConnected():
-            self.connected()
+            self._connected()
         else:
             try:
               SpecWaitObject.waitConnection(self.connection, timeout)
@@ -186,14 +174,46 @@ class SpecCommandA(BaseSpecCommand):
               pass
             SpecEventsDispatcher.dispatch()
 
-
     def connected(self):
         pass
+
+    def _connected(self):
+        print "*"*50, " CONNECTED"
+        try:
+            cb_ref = self.__callbacks.get("connected")
+            if cb_ref is not None:
+                cb = cb_ref()
+                if cb is not None:
+                    print "calling",cb
+                    cb()
+        finally:
+            self.connected()
+
+    def _disconnected(self):
+        try:
+            cb_ref = self.__callbacks.get("disconnected")
+            if cb_ref is not None:
+                cb = cb_ref()
+                if cb is not None:
+                    cb()
+        finally:
+           self.disconnected()
 
 
     def disconnected(self):
         pass
 
+ 
+    def _statusChanged(self, ready):
+        try:
+            cb_ref = self.__callbacks.get("statusChanged")
+            if cb_ref is not None:
+                cb = cb_ref()
+                if cb is not None:
+                   cb(ready)
+        finally:
+            self.statusChanged(ready)
+    
 
     def statusChanged(self, ready):
         pass

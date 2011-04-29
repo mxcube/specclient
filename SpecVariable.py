@@ -112,6 +112,7 @@ class SpecVariableA:
         specVersion -- 'host:port' string representing a Spec server to connect to (defaults to None)
         """
         self.connection = None
+        self.dispatchMode = UPDATEVALUE
         self.channelName = ''
         self.__callbacks = {
           'connected': None,
@@ -149,11 +150,7 @@ class SpecVariableA:
         self.connection = SpecConnectionsManager.SpecConnectionsManager().getConnection(specVersion)
         SpecEventsDispatcher.connect(self.connection, 'connected', self._connected)
         SpecEventsDispatcher.connect(self.connection, 'disconnected', self._disconnected)
-
-        #
-        # register channel
-        #
-        self.connection.registerChannel(self.channelName, self._update, dispatchMode = dispatchMode)
+        self.dispatchMode = dispatchMode
 
         if self.connection.isSpecConnected():
             self._connected()
@@ -164,6 +161,11 @@ class SpecVariableA:
 
 
     def _connected(self):
+        #
+        # register channel
+        #
+        self.connection.registerChannel(self.channelName, self._update, dispatchMode = self.dispatchMode)
+
         try:
           if self.__callbacks.get("connected"):
             cb = self.__callbacks["connected"]()

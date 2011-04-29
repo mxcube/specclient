@@ -178,13 +178,11 @@ class SpecCommandA(BaseSpecCommand):
         pass
 
     def _connected(self):
-        print "*"*50, " CONNECTED"
         try:
             cb_ref = self.__callbacks.get("connected")
             if cb_ref is not None:
                 cb = cb_ref()
                 if cb is not None:
-                    print "calling",cb
                     cb()
         finally:
             self.connected()

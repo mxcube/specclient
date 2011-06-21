@@ -74,6 +74,13 @@ class SpecMotorA:
         SpecEventsDispatcher.connect(self.connection, 'connected', self.__connected)
         SpecEventsDispatcher.connect(self.connection, 'disconnected', self.__disconnected)
 
+
+        if self.connection.isSpecConnected():
+            self.__connected()
+
+
+    def __connected(self):
+        """Private callback triggered by a 'connected' event from Spec."""
         #
         # register channels
         #
@@ -88,13 +95,7 @@ class SpecMotorA:
         self.connection.registerChannel(self.chanNamePrefix % 'offset', self.motorOffsetChanged)
         self.connection.registerChannel(self.chanNamePrefix % 'sign', self.signChanged)
         #self.connection.registerChannel(self.chanNamePrefix % 'dial_position', self.dialPositionChanged)
-
-        if self.connection.isSpecConnected():
-            self.__connected()
-
-
-    def __connected(self):
-        """Private callback triggered by a 'connected' event from Spec."""
+        
         self.connected()
         if self.__callbacks.get("connected"):
           cb = self.__callbacks["connected"]()

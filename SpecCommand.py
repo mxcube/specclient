@@ -163,7 +163,6 @@ class SpecCommandA(BaseSpecCommand):
 
         SpecEventsDispatcher.connect(self.connection, 'connected', self._connected)
         SpecEventsDispatcher.connect(self.connection, 'disconnected', self._disconnected)
-        self.connection.registerChannel("status/ready", self._statusChanged)
 
         if self.connection.isSpecConnected():
             self._connected()
@@ -178,6 +177,7 @@ class SpecCommandA(BaseSpecCommand):
         pass
 
     def _connected(self):
+        self.connection.registerChannel("status/ready", self._statusChanged)
         try:
             cb_ref = self.__callbacks.get("connected")
             if cb_ref is not None:

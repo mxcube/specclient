@@ -124,28 +124,30 @@ class SpecScanA:
         self.__specVersion = specVersion
 
         SpecEventsDispatcher.connect(self.connection, 'connected',
-                                     self.connected)
+                                     self.__connected)
         SpecEventsDispatcher.connect(self.connection, 'disconnected',
                                      self.__disconnected)
 
-        self.connection.registerChannel('status/ready', self.__statusReady,
-                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
-        self.connection.registerChannel('var/_SC_NEWSCAN', self.__newScan,
-                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
-        self.connection.registerChannel('var/_SC_NEWPLOTDATA',
-                                    self.__newScanPoint,
-                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
-        self.connection.registerChannel('var/_SC_NEWSCANDATA',
-                                    self.__newScanData,
-                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
-
         if self.connection.isSpecConnected():
-            self.connected()
+            self.__connected()
 
 
     def isConnected(self):
         return self.connection and self.connection.isSpecConnected()
 
+
+    def __connected(self):
+       self.connection.registerChannel('status/ready', self.__statusReady,
+                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
+       self.connection.registerChannel('var/_SC_NEWSCAN', self.__newScan,
+                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
+       self.connection.registerChannel('var/_SC_NEWPLOTDATA',
+                                    self.__newScanPoint,
+                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
+       self.connection.registerChannel('var/_SC_NEWSCANDATA',
+                                    self.__newScanData,
+                                    dispatchMode=SpecEventsDispatcher.FIREEVENT)
+       self.connected()
 
     def connected(self):
         pass

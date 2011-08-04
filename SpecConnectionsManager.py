@@ -176,13 +176,13 @@ class _SpecConnectionsManager:
     """
     def __init__(self):
         """Constructor"""
-        self.connections = {}
+        self.connections = weakref.WeakValueDictionary()
 
     def getFdDispatchersDict(self):
         connection_keys = self.connections.keys()
         connection_dispatchers = {}
         for k in connection_keys:
-          connection = self.connections.get(k)()
+          connection = self.connections.get(k) #()
           if connection is not None:
             condis = connection.dispatcher  
             condis.makeConnection()
@@ -203,7 +203,7 @@ class _SpecConnectionsManager:
 
     def stop(self):
         """Stop the connections manager thread and dereferences all connections"""
-        self.connections = {}
+        self.connections = weakref.WeakValueDictionary()
 
 
     def getConnection(self, specVersion):
@@ -213,31 +213,24 @@ class _SpecConnectionsManager:
         specVersion -- a string in the 'host:port' form
         """
         con = self.connections.get(specVersion)
-        if con is None or con() is None:
+        if con is None: # or con() is None:
             con = SpecConnection.SpecConnection(specVersion)
-
-            def removeConnection(ref, connectionName = specVersion):
-                self.closeConnection(connectionName)
-
-            self.connections[specVersion] = weakref.ref(con, removeConnection)
-        else:
-            con = con()
+            self.connections[specVersion] = con
+        #else:
+        #    con = con()
 
         return con
 
 
     def closeConnection(self, specVersion):
         try:
-            self.connectionDispatchers[specVersion].handle_close()
-
-            del self.connectionDispatchers[specVersion]
             del self.connections[specVersion]
         except:
             pass
 
 
     def closeConnections(self):
-        for connectionName in self.connectionDispatchers.keys():
+        for connectionName in self.connections.keys():
             self.closeConnection(connectionName)
 
 

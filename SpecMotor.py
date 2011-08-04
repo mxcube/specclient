@@ -95,12 +95,14 @@ class SpecMotorA:
         self.connection.registerChannel(self.chanNamePrefix % 'offset', self.motorOffsetChanged)
         self.connection.registerChannel(self.chanNamePrefix % 'sign', self.signChanged)
         #self.connection.registerChannel(self.chanNamePrefix % 'dial_position', self.dialPositionChanged)
-        
-        self.connected()
-        if self.__callbacks.get("connected"):
-          cb = self.__callbacks["connected"]()
-          if cb is not None:
-            cb()
+       
+        try: 
+          if self.__callbacks.get("connected"):
+            cb = self.__callbacks["connected"]()
+            if cb is not None:
+              cb()
+        finally:
+          self.connected()
 
 
     def connected(self):
@@ -117,11 +119,14 @@ class SpecMotorA:
         Put the motor in NOTINITIALIZED state.
         """
         self.__changeMotorState(NOTINITIALIZED)
-        self.disconnected()
-        if self.__callbacks.get("disconnected"):
-          cb = self.__callbacks["disconnected"]()
-          if cb is not None:
-            cb()
+
+        try:
+          if self.__callbacks.get("disconnected"):
+            cb = self.__callbacks["disconnected"]()
+            if cb is not None:
+              cb()
+        finally:
+          self.disconnected()
 
 
     def disconnected(self):
@@ -145,11 +150,13 @@ class SpecMotorA:
 
 
     def _motorLimitsChanged(self):
-        self.motorLimitsChanged()
-        if self.__callbacks.get("motorLimitsChanged"):
-          cb = self.__callbacks["motorLimitsChanged"]()
-          if cb is not None:
-            cb()
+        try:
+          if self.__callbacks.get("motorLimitsChanged"):
+            cb = self.__callbacks["motorLimitsChanged"]()
+            if cb is not None:
+              cb()
+        finally:
+          self.motorLimitsChanged()
 
 
     def motorLimitsChanged(self):
@@ -201,12 +208,13 @@ class SpecMotorA:
               self.__old_position = absolutePosition
            else:
               return
-        self.motorPositionChanged(absolutePosition)
-        if self.__callbacks.get("motorPositionChanged"):
-          cb = self.__callbacks["motorPositionChanged"]()
-          if cb is not None:
-             cb(absolutePosition)
-
+        try:
+          if self.__callbacks.get("motorPositionChanged"):
+            cb = self.__callbacks["motorPositionChanged"]()
+            if cb is not None:
+              cb(absolutePosition)
+        finally:
+          self.motorPositionChanged(absolutePosition)
 
 
     def motorPositionChanged(self, absolutePosition):
@@ -292,12 +300,14 @@ class SpecMotorA:
         state -- the motor state
         """
         self.motorState = state
-        self.motorStateChanged(state)
-        if self.__callbacks.get("motorStateChanged"):
-          cb = self.__callbacks["motorStateChanged"]()
-          if cb is not None:
-            cb(state)
 
+        try:
+          if self.__callbacks.get("motorStateChanged"):
+            cb = self.__callbacks["motorStateChanged"]()
+            if cb is not None:
+              cb(state)
+        finally:
+          self.motorStateChanged(state)
 
 
     def motorStateChanged(self, state):
@@ -323,7 +333,7 @@ class SpecMotorA:
         self.__changeMotorState(MOVESTARTED)
 
         c = self.connection.getChannel(self.chanNamePrefix % 'start_one')
-
+        
         c.write(absolutePosition)
 
 

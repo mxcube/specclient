@@ -95,7 +95,11 @@ class SpecMotorA:
         self.connection.registerChannel(self.chanNamePrefix % 'offset', self.motorOffsetChanged)
         self.connection.registerChannel(self.chanNamePrefix % 'sign', self.signChanged)
         #self.connection.registerChannel(self.chanNamePrefix % 'dial_position', self.dialPositionChanged)
-       
+
+        # trigger an event on socket => will have no effect (spec reply will be ignored), but SpecEventsDispatcher.dispatch
+        # will get called
+        self.connection.send_msg_hello()
+ 
         try: 
           if self.__callbacks.get("connected"):
             cb = self.__callbacks["connected"]()

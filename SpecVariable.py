@@ -166,6 +166,8 @@ class SpecVariableA:
         #
         self.connection.registerChannel(self.channelName, self._update, dispatchMode = self.dispatchMode)
 
+        self.connection.send_msg_hello()
+
         try:
           if self.__callbacks.get("connected"):
             cb = self.__callbacks["connected"]()

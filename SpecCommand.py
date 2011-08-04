@@ -178,6 +178,9 @@ class SpecCommandA(BaseSpecCommand):
 
     def _connected(self):
         self.connection.registerChannel("status/ready", self._statusChanged)
+ 
+        self.connection.send_msg_hello()        
+
         try:
             cb_ref = self.__callbacks.get("connected")
             if cb_ref is not None:

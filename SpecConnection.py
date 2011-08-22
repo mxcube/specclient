@@ -207,6 +207,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
             channel = SpecChannel.SpecChannel(self, chanName, registrationFlag)
             self.registeredChannels[chanName] = channel
             if channel.spec_chan_name != chanName:
+                channel.registered = True
                 def valueChanged(value, chanName=chanName):
                     channel = self.registeredChannels[chanName]
                     channel.update(value) #,force=True)

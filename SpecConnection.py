@@ -13,7 +13,10 @@ SpecConnectionDispatcher
 __author__ = 'Matias Guijarro'
 __version__ = '1.0'
 
-import asyncore
+#import asyncore
+#import socket
+import gevent
+import gevent.socket
 import socket
 import weakref
 import string
@@ -27,63 +30,12 @@ import SpecReply
 import traceback
 import sys
 
-asyncore.dispatcher.ac_in_buffer_size = 32768 #32 ko input buffer
+#asyncore.dispatcher.ac_in_buffer_size = 32768 #32 ko input buffer
 
 (DISCONNECTED, PORTSCANNING, WAITINGFORHELLO, CONNECTED) = (1,2,3,4)
 (MIN_PORT, MAX_PORT) = (6510, 6530)
 
 class SpecConnection:
-    """Represent a connection to a remote Spec
-
-    Signals:
-    connected() -- emitted when the required Spec version gets connected
-    disconnected() -- emitted when the required Spec version gets disconnected
-    replyFromSpec(reply id, SpecReply object) -- emitted when a reply comes from the remote Spec
-    error(error code) -- emitted when an error event is received from the remote Spec
-    """
-    def __init__(self, *args):
-        """Constructor"""
-        self.dispatcher = SpecConnectionDispatcher(*args)
-
-        SpecEventsDispatcher.connect(self.dispatcher, 'connected', self.connected)
-        SpecEventsDispatcher.connect(self.dispatcher, 'disconnected', self.disconnected)
-        #SpecEventsDispatcher.connect(self.dispatcher, 'replyFromSpec', self.replyFromSpec)
-        SpecEventsDispatcher.connect(self.dispatcher, 'error', self.error)
-
-
-    def __str__(self):
-        return str(self.dispatcher)
-
-
-    def __getattr__(self, attr):
-        """Delegate access to the underlying SpecConnectionDispatcher object"""
-        if not attr.startswith('__'):
-            return getattr(self.dispatcher, attr)
-        else:
-            raise AttributeError
-
-
-    def connected(self):
-        """Propagate 'connection' event"""
-        SpecEventsDispatcher.emit(self, 'connected', ())
-
-
-    def disconnected(self):
-        """Propagate 'disconnection' event"""
-        SpecEventsDispatcher.emit(self, 'disconnected', ())
-
-
-    #def replyFromSpec(self, replyID, reply):
-    #    """Propagate 'reply from Spec' event"""
-    #    SpecEventsDispatcher.emit(self, 'replyFromSpec', (replyID, reply, ))
-
-
-    def error(self, error):
-        """Propagate 'error' event"""
-        SpecEventsDispatcher.emit(self, 'error', (error, ))
-
-
-class SpecConnectionDispatcher(asyncore.dispatcher):
     """SpecConnection class
 
     Signals:
@@ -98,8 +50,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         Arguments:
         specVersion -- a 'host:port' string
         """
-        asyncore.dispatcher.__init__(self)
-
         self.state = DISCONNECTED
         self.connected = False
         self.receivedStrings = []
@@ -110,10 +60,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         self.aliasedChannels = {}
         self.registeredChannels = {}
         self.registeredReplies = {}
-        self.sendq = []
-        self.outputStrings = []
         self.simulationMode = False
-        self.valid_socket = False
 
         # some shortcuts
         self.macro       = self.send_msg_cmd_with_return
@@ -144,10 +91,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
     def __str__(self):
         return '<connection to Spec, host=%s, port=%s>' % (self.host, self.port or self.scanname)
 
-    def set_socket(self, s):
-      self.valid_socket = True
-      asyncore.dispatcher.set_socket(self, s)
-
     def makeConnection(self):
         """Establish a connection to Spec
 
@@ -156,26 +99,32 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         If we are in port scanning mode, try to connect using
         a port defined in the range from MIN_PORT to MAX_PORT
         """
-        if not self.connected:
+        while True:
+          print 'in makeConnection'
+          if not self.connected:
             if self.scanport:
               if self.port is None or self.port > MAX_PORT:
                 self.port = MIN_PORT
               else:
                 self.port += 1
+                
             while not self.scanport or self.port < MAX_PORT:
-              s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-              s.settimeout(0.2)
-              try:
-                 if s.connect_ex( (self.host, self.port) ) == 0:
-                   self.set_socket(s)
-                   self.handle_connect()
-                   break
-              except socket.error, err:
-                 pass #exception could be 'host not found' for example, we ignore it
-              if self.scanport:
-                self.port += 1 
-              else:
-                break
+                try:
+                    s = gevent.socket.create_connection((self.host, self.port), timeout=0.2)
+                except socket.error:
+                    pass
+                else:
+                    print "creating new connection"
+                    self.connection_greenlet = gevent.spawn(self.handle_connection, s)
+                    print self.connection_greenlet
+                    break
+                if self.scanport:
+                    self.port += 1 
+                else:
+                    break
+          print 'sleeping'
+          time.sleep(1)
+        print "getting out of makeConnection"
 
     def registerChannel(self, chanName, receiverSlot, registrationFlag = SpecChannel.DOREG, dispatchMode = SpecEventsDispatcher.UPDATEVALUE):
         """Register a channel
@@ -291,13 +240,83 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
 
             SpecEventsDispatcher.emit(self, 'disconnected', ())
 
+    def handle_connection(self, socket_to_spec):
+        self.socket = socket_to_spec
+        socket_to_spec.settimeout(None) #; self.socket.setblocking(0)
+        self.connected = True
+
+        self.state = WAITINGFORHELLO
+        self.send_msg_hello()
+
+        while True:
+            print "issuing blocking recv call"
+            self.receivedStrings.append(socket_to_spec.recv(4096))
+            print "recv:",self.receivedStrings[-1], "<>"
+
+            if self.receivedStrings[-1]=="":
+              return self.handle_close()
+                
+            s = ''.join(self.receivedStrings)
+            sbuffer = buffer(s)
+            consumedBytes = 0
+            offset = 0
+
+            while offset < len(sbuffer):
+                if self.message is None:
+                    self.message = SpecMessage.message(version = self.serverVersion)
+
+                consumedBytes = self.message.readFromStream(sbuffer[offset:])
+
+                if consumedBytes == 0:
+                    break
+
+                offset += consumedBytes
+
+                if self.message.isComplete():
+                    try:
+                        # dispatch incoming message
+                        if self.message.cmd == SpecMessage.REPLY:
+                            replyID = self.message.sn
+
+                            if replyID > 0:
+                                try:
+                                    reply = self.registeredReplies[replyID]
+                                except:
+                                    logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
+                                else:
+                                    del self.registeredReplies[replyID]
+
+                                    reply.update(self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
+                        elif self.message.cmd == SpecMessage.EVENT:
+                            try:
+                                self.registeredChannels[self.message.name].update(self.message.data, self.message.flags == SpecMessage.DELETED)
+                            except KeyError:
+                                pass
+                        elif self.message.cmd == SpecMessage.HELLO_REPLY:
+                            if self.checkourversion(self.message.name):
+                                self.serverVersion = self.message.vers #header version
+                                self.specConnected()
+                            else:
+                                self.serverVersion = None
+                                self.connected = False
+                                self.close()
+                                self.state = DISCONNECTED
+                    except:
+                        self.message = None
+                        self.receivedStrings = [ s[offset:] ]
+                        raise
+                    else:
+                        self.message = None
+
+            self.receivedStrings = [ s[offset:] ]
+        
+            
     def handle_close(self):
         """Handle 'close' event on socket."""
         self.connected = False
         self.serverVersion = None
         if self.socket:
-            self.close()
-        self.valid_socket = False
+            self.socket.close()
         self.registeredChannels = {}
         self.aliasedChannels = {}
         self.specDisconnected()
@@ -315,69 +334,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         sys.excepthook(exception, error_string, tb)
 
 
-    def handle_read(self):
-        """Handle 'read' events on socket
-
-        Messages are built from the read calls on the socket.
-        """
-        self.receivedStrings.append(self.recv(32768)) #read at most all the input buffer
-        s = ''.join(self.receivedStrings)
-        sbuffer = buffer(s)
-        consumedBytes = 0
-        offset = 0
-
-        while offset < len(sbuffer):
-            if self.message is None:
-                self.message = SpecMessage.message(version = self.serverVersion)
-
-            consumedBytes = self.message.readFromStream(sbuffer[offset:])
-
-            if consumedBytes == 0:
-                break
-
-            offset += consumedBytes
-
-            if self.message.isComplete():
-                try:
-                    # dispatch incoming message
-                    if self.message.cmd == SpecMessage.REPLY:
-                        replyID = self.message.sn
-
-                        if replyID > 0:
-                            try:
-                                reply = self.registeredReplies[replyID]
-                            except:
-                                logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
-                            else:
-                                del self.registeredReplies[replyID]
-
-                                reply.update(self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
-                                #SpecEventsDispatcher.emit(self, 'replyFromSpec', (replyID, reply, ))
-                    elif self.message.cmd == SpecMessage.EVENT:
-                        try:
-                            self.registeredChannels[self.message.name].update(self.message.data, self.message.flags == SpecMessage.DELETED)
-                        except KeyError:
-                            pass
-                    elif self.message.cmd == SpecMessage.HELLO_REPLY:
-                        if self.checkourversion(self.message.name):
-                            self.serverVersion = self.message.vers #header version
-                            #self.state = CONNECTED
-                            self.specConnected()
-                        else:
-                            self.serverVersion = None
-                            self.connected = False
-                            self.close()
-                            self.state = DISCONNECTED
-                except:
-                    self.message = None
-                    self.receivedStrings = [ s[offset:] ]
-                    raise
-                else:
-                    self.message = None
-                                   
-        self.receivedStrings = [ s[offset:] ]
-
-
     def checkourversion(self, name):
         """Check remote Spec version
 
@@ -392,43 +348,6 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
                 return False
         else:
             return True
-
-
-    def readable(self):
-        return self.valid_socket
-
-
-    def writable(self):
-        """Return True if socket should be written."""
-        ret = self.readable() and (len(self.sendq) > 0 or sum(map(len, self.outputStrings)) > 0)
-        #print 'writable?', str(self), ret
-        return ret
-
-
-    def handle_connect(self):
-        """Handle 'connect' event on socket
-
-        Send a HELLO message.
-        """
-        self.connected = True
-
-        self.state = WAITINGFORHELLO
-        self.send_msg_hello()
-
-
-    def handle_write(self):
-        """Handle 'write' events on socket
-
-        Send all the messages from the queue.
-        """
-        while len(self.sendq) > 0:
-            self.outputStrings.append(self.sendq.pop().sendingString())
-
-        outputBuffer = ''.join(self.outputStrings)
-
-        sent = self.send(outputBuffer)
-
-        self.outputStrings = [ outputBuffer[sent:] ]
 
 
     def send_msg_cmd_with_return(self, cmd):
@@ -588,7 +507,7 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         if hasattr(replyReceiverObject, 'replyArrived'):
             SpecEventsDispatcher.connect(reply, 'replyFromSpec', replyReceiverObject.replyArrived)
 
-        self.sendq.insert(0, message)
+        self.__send_msg_no_reply(message)
 
         return replyID
 
@@ -600,19 +519,5 @@ class SpecConnectionDispatcher(asyncore.dispatcher):
         method to send the message. Using this method, any reply is
         lost.
         """
-        self.sendq.insert(0, message)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        print "__send_msg_no_reply"
+        self.socket.sendall(message.sendingString())

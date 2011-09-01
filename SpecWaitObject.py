@@ -18,25 +18,11 @@ __version__ = '1.0'
 import weakref
 import time
 import types
+import gevent
 
 import SpecEventsDispatcher
 from SpecClient.SpecClientError import SpecClientError, SpecClientTimeoutError
 import SpecConnectionsManager
-
-
-def waitFunc(timeout):
-  """Waiting function
-
-  Arguments:
-  timeout -- waiting time in milliseconds
-  """
-  try:
-    P = getattr(SpecConnectionsManager.SpecConnectionsManager(), "poll")
-  except AttributeError:
-    time.sleep(timeout/1000.0)
-    SpecEventsDispatcher.dispatch()
-  else:
-    P(timeout/1000.0)
 
 
 class SpecWaitObject:
@@ -132,14 +118,14 @@ class SpecWaitObject:
             t = 0
 
             while self.isdisconnected:
-                SpecEventsDispatcher.dispatch()
-
                 t0 = time.time()
-                waitFunc(10)
+                time.sleep(0.01) 
                 t += (time.time() - t0)*1000
 
                 if timeout is not None and t >= timeout:
                     raise SpecClientTimeoutError
+ 
+                SpecEventsDispatcher.dispatch()
 
 
     def wait(self, waitValue = None, timeout = None):
@@ -154,7 +140,8 @@ class SpecWaitObject:
         """
         t0 = time.time()
         while not self.isdisconnected:
-            waitFunc(10)
+            time.sleep(0.01)
+            SpecEventsDispatcher.dispatch()
 
             if self.value is not None:
                 if waitValue is None:
@@ -201,14 +188,11 @@ def waitConnection(connection, timeout = None):
     connection -- a 'host:port' string
     timeout -- optional timeout (defaults to None)
     """
-    if type(connection) in (types.UnicodeType, types.StringType):
-      from SpecClient.SpecConnectionsManager import SpecConnectionsManager
-      connection = SpecConnectionsManager().getConnection(str(connection))
-
     w = SpecWaitObject(connection)
 
-    w.waitConnection(timeout = timeout)
-
+    wait_greenlet = gevent.spawn(w.waitConnection, timeout=timeout)
+    wait_greenlet.join()
+ 
 
 def waitChannelUpdate(chanName, connection, waitValue = None, timeout = None):
     """Wait for a channel to be updated
@@ -219,14 +203,10 @@ def waitChannelUpdate(chanName, connection, waitValue = None, timeout = None):
     waitValue -- value to wait (defaults to None)
     timeout -- optional timeout (defaults to None)
     """
-    if type(connection) in (types.UnicodeType, types.StringType):
-      connection = str(connection)
-      from SpecClient.SpecConnectionsManager import SpecConnectionsManager
-      connection = SpecConnectionsManager().getConnection(connection)
-      waitConnection(connection, timeout = timeout)
-
     w = SpecWaitObject(connection)
-    w.waitChannelUpdate(chanName, waitValue = waitValue, timeout = timeout)
+
+    wait_greenlet = gevent.spawn(w.waitChannelUpdate, chanName, waitValue = waitValue, timeout=timeout)
+    wait_greenlet.join()
 
     return w.value
 
@@ -240,14 +220,10 @@ def waitReply(connection, command, argsTuple, timeout = None):
     argsTuple -- tuple of arguments for the command
     timeout -- optional timeout (defaults to None)
     """
-    if type(connection) in (types.UnicodeType, types.StringType):
-      connection = str(connection)
-      from SpecClient.SpecConnectionsManager import SpecConnectionsManager
-      connection = SpecConnectionsManager().getConnection(connection)
-      waitConnection(connection, timeout = timeout)
-
     w = SpecWaitObject(connection)
-    w.waitReply(command, argsTuple, timeout=timeout)
+    
+    wait_greenlet = gevent.spawn(w.waitReply, command, argsTuple, timeout=timeout)
+    wait_greenlet.join() 
 
     return w.value
 

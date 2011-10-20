@@ -27,21 +27,12 @@ import SpecEventsDispatcher
 
 _SpecConnectionsManagerInstance = None
 
-def bla():
-  for i in xrange(1000):
-    print i
-    time.sleep(1)
-
 def SpecConnectionsManager():
     """Return the Singleton Spec connections manager instance"""
     global _SpecConnectionsManagerInstance
 
     if _SpecConnectionsManagerInstance is None:
             _SpecConnectionsManagerInstance = _SpecConnectionsManager()
-
-    global gg
-    gg = gevent.spawn(bla)
-    print gg
 
     return _SpecConnectionsManagerInstance
 

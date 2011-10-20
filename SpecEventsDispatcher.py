@@ -182,12 +182,19 @@ def disconnect(sender, signal, slot):
 
 
 def emit(sender, signal, arguments = ()):
-    eventsToDispatch.put(Event(sender, signal, arguments))
-    #if threading.current_thread() == MAIN_THREAD:
-    #    dispatch(-1)
+    senderId = id(sender)
+    signal = str(signal)
 
-
+    try:
+      receivers = connections[senderId][signal]
+    except:
+      return
+    else:
+      for receiver in receivers:
+        receiver(arguments)  
+ 
 def dispatch(max_time_in_s=1):
+    return
     t0 = time.time()
     while 1:
         try:

@@ -61,6 +61,7 @@ class SpecConnection:
         self.registeredChannels = {}
         self.registeredReplies = {}
         self.simulationMode = False
+        self.connected_event = gevent.event.Event()
 
         # some shortcuts
         self.macro       = self.send_msg_cmd_with_return
@@ -100,7 +101,6 @@ class SpecConnection:
         a port defined in the range from MIN_PORT to MAX_PORT
         """
         while True:
-          print 'in makeConnection'
           if not self.connected:
             if self.scanport:
               if self.port is None or self.port > MAX_PORT:
@@ -114,17 +114,13 @@ class SpecConnection:
                 except socket.error:
                     pass
                 else:
-                    print "creating new connection"
                     self.connection_greenlet = gevent.spawn(self.handle_connection, s)
-                    print self.connection_greenlet
                     break
                 if self.scanport:
                     self.port += 1 
                 else:
                     break
-          print 'sleeping'
           time.sleep(1)
-        print "getting out of makeConnection"
 
     def registerChannel(self, chanName, receiverSlot, registrationFlag = SpecChannel.DOREG, dispatchMode = SpecEventsDispatcher.UPDATEVALUE):
         """Register a channel
@@ -229,6 +225,8 @@ class SpecConnection:
 
             SpecEventsDispatcher.emit(self, 'connected', ())
 
+            self.connected_event.set()
+
     def specDisconnected(self):
         """Emit the 'disconnected' signal when the remote Spec version is disconnected."""
         SpecEventsDispatcher.dispatch()
@@ -239,6 +237,8 @@ class SpecConnection:
             logging.getLogger('SpecClient').info('Disconnected from %s:%s', self.host, (self.scanport and self.scanname) or self.port)
 
             SpecEventsDispatcher.emit(self, 'disconnected', ())
+ 
+            self.connected_event.clear()
 
     def handle_connection(self, socket_to_spec):
         self.socket = socket_to_spec
@@ -249,23 +249,20 @@ class SpecConnection:
         self.send_msg_hello()
 
         while True:
-            print "issuing blocking recv call"
             self.receivedStrings.append(socket_to_spec.recv(4096))
-            print "recv:",self.receivedStrings[-1], "<>"
 
             if self.receivedStrings[-1]=="":
               return self.handle_close()
                 
             s = ''.join(self.receivedStrings)
-            sbuffer = buffer(s)
             consumedBytes = 0
             offset = 0
 
-            while offset < len(sbuffer):
+            while offset < len(s):
                 if self.message is None:
                     self.message = SpecMessage.message(version = self.serverVersion)
 
-                consumedBytes = self.message.readFromStream(sbuffer[offset:])
+                consumedBytes = self.message.readFromStream(s[offset:])
 
                 if consumedBytes == 0:
                     break
@@ -273,11 +270,11 @@ class SpecConnection:
                 offset += consumedBytes
 
                 if self.message.isComplete():
+                  try:
                     try:
                         # dispatch incoming message
                         if self.message.cmd == SpecMessage.REPLY:
                             replyID = self.message.sn
-
                             if replyID > 0:
                                 try:
                                     reply = self.registeredReplies[replyID]
@@ -286,12 +283,14 @@ class SpecConnection:
                                 else:
                                     del self.registeredReplies[replyID]
 
-                                    reply.update(self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
+                                    gevent.spawn(reply.update, self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
                         elif self.message.cmd == SpecMessage.EVENT:
                             try:
-                                self.registeredChannels[self.message.name].update(self.message.data, self.message.flags == SpecMessage.DELETED)
+                                channel = self.registeredChannels[self.message.name]
                             except KeyError:
                                 pass
+                            else:
+                                gevent.spawn(channel.update, self.message.data, self.message.flags == SpecMessage.DELETED)
                         elif self.message.cmd == SpecMessage.HELLO_REPLY:
                             if self.checkourversion(self.message.name):
                                 self.serverVersion = self.message.vers #header version
@@ -302,11 +301,10 @@ class SpecConnection:
                                 self.close()
                                 self.state = DISCONNECTED
                     except:
-                        self.message = None
                         self.receivedStrings = [ s[offset:] ]
                         raise
-                    else:
-                        self.message = None
+                  finally:
+                    self.message = None
 
             self.receivedStrings = [ s[offset:] ]
         
@@ -503,7 +501,7 @@ class SpecConnection:
         """
         replyID = reply.id
         self.registeredReplies[replyID] = reply
-
+   
         if hasattr(replyReceiverObject, 'replyArrived'):
             SpecEventsDispatcher.connect(reply, 'replyFromSpec', replyReceiverObject.replyArrived)
 
@@ -519,5 +517,4 @@ class SpecConnection:
         method to send the message. Using this method, any reply is
         lost.
         """
-        print "__send_msg_no_reply"
         self.socket.sendall(message.sendingString())

@@ -37,6 +37,8 @@ class SpecWaitObject:
         self.isdisconnected = True
         self.channelWasUnregistered = False
         self.value = None
+        self.spec_reply_arrived_event = gevent.event.Event()
+        self.channel_updated_event = gevent.event.Event()
 
         SpecEventsDispatcher.connect(connection, 'connected', self.connected)
         SpecEventsDispatcher.connect(connection, 'disconnected', self.disconnected)
@@ -71,10 +73,16 @@ class SpecWaitObject:
             except:
                 return
             else:
+                self.spec_reply_arrived_event.clear()
+
                 if callable(func):
                     func(*argsTuple)
-
-                self.wait(timeout = timeout)
+                
+                try:
+                  self.spec_reply_arrived_event.wait(timeout)
+                except:
+                  raise SpecClientTimeoutError
+                
 
 
     def waitChannelUpdate(self, chanName, waitValue = None, timeout = None):
@@ -90,6 +98,7 @@ class SpecWaitObject:
         if connection is not None:
             self.channelWasUnregistered = False
             channel = connection.getChannel(chanName)
+            self.channel_updated_event.clear()
 
             if not channel.registered:
                 self.channelWasUnregistered = True
@@ -97,7 +106,18 @@ class SpecWaitObject:
             else:
                 SpecEventsDispatcher.connect(channel, 'valueChanged', self.channelUpdated)
 
-            self.wait(waitValue = waitValue, timeout = timeout)
+            if waitValue is None:
+              try:
+                self.channel_updated_event.wait(timeout)
+              except:
+                raise SpecClientTimeoutError
+            else:
+              while waitValue != self.value:
+                try:
+                  self.channel_updated_event.wait(timeout)
+                except:
+                  raise SpecClientTimeoutError
+                self.channel_updated_event.clear()
 
             if self.channelWasUnregistered:
                 connection.unregisterChannel(chanName) #channel.unregister()
@@ -114,56 +134,20 @@ class SpecWaitObject:
         """
         connection = self.connection()
 
-        if connection is not None:
-            t = 0
-
-            while self.isdisconnected:
-                t0 = time.time()
-                time.sleep(0.01) 
-                t += (time.time() - t0)*1000
-
-                if timeout is not None and t >= timeout:
-                    raise SpecClientTimeoutError
- 
-                SpecEventsDispatcher.dispatch()
-
-
-    def wait(self, waitValue = None, timeout = None):
-        """Block until the object's internal value gets updated
-
-        Arguments:
-        waitValue -- particular value to wait (defaults to None, meaning any value)
-        timeout -- optional timeout (defaults to None)
-
-        Exceptions:
-        timeout -- raise a timeout exception on timeout
-        """
-        t0 = time.time()
-        while not self.isdisconnected:
-            time.sleep(0.01)
-            SpecEventsDispatcher.dispatch()
-
-            if self.value is not None:
-                if waitValue is None:
-                    return
-
-                if waitValue == self.value:
-                    return
-                else:
-                    self.value = None
-
-            if self.value is None:
-                t = (time.time() - t0)*1000
-                if timeout is not None and t >= timeout:
-                    raise SpecClientTimeoutError
-
+        try:
+          connection.connected_event.wait(timeout)
+        except: 
+          raise SpecClientTimeoutError
+        
 
     def replyArrived(self, reply):
         """Callback triggered by a reply from Spec."""
         self.value = reply.getValue()
+        self.spec_reply_arrived_event.set()
 
         if reply.error:
             raise SpecClientError('Server request did not complete: %s' % self.value, reply.error_code)
+        
 
 
     def channelUpdated(self, channelValue):
@@ -179,6 +163,7 @@ class SpecWaitObject:
             self.channelWasUnregistered = 2
         else:
             self.value = channelValue
+            self.channel_updated_event.set()
 
 
 def waitConnection(connection, timeout = None):
@@ -192,7 +177,6 @@ def waitConnection(connection, timeout = None):
 
     wait_greenlet = gevent.spawn(w.waitConnection, timeout=timeout)
     wait_greenlet.join()
- 
 
 def waitChannelUpdate(chanName, connection, waitValue = None, timeout = None):
     """Wait for a channel to be updated

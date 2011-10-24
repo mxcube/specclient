@@ -2,7 +2,7 @@
 """SpecConnection module
 
 Low-level module for communicating with a
-remove Spec server
+remote Spec server
 
 Classes :
 SpecClientNotConnectedError -- exception class
@@ -13,8 +13,6 @@ SpecConnectionDispatcher
 __author__ = 'Matias Guijarro'
 __version__ = '1.0'
 
-#import asyncore
-#import socket
 import gevent
 import gevent.socket
 import socket
@@ -29,8 +27,6 @@ import SpecMessage
 import SpecReply
 import traceback
 import sys
-
-#asyncore.dispatcher.ac_in_buffer_size = 32768 #32 ko input buffer
 
 (DISCONNECTED, PORTSCANNING, WAITINGFORHELLO, CONNECTED) = (1,2,3,4)
 (MIN_PORT, MAX_PORT) = (6510, 6530)

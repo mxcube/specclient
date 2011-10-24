@@ -131,7 +131,7 @@ def connectionHandler(connection_ref, socket_to_spec):
                            gevent.spawn(reply.update, message.data, message.type == SpecMessage.ERROR, message.err)
                   elif message.cmd == SpecMessage.EVENT:
                      try:
-                        channel = conn.registeredChannels[self.message.name]
+                        channel = conn.registeredChannels[message.name]
                      except KeyError:
                         pass
                      else:

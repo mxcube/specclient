@@ -53,7 +53,7 @@ class _SpecConnectionsManager:
         con = self.connections.get(specVersion)
         if con is None:
             con = SpecConnection.SpecConnection(specVersion)
-            con.makecon_greenlet = gevent.spawn(con.makeConnection)
+            gevent.spawn(SpecConnection.makeConnection, weakref.ref(con))
 
             self.connections[specVersion] = con
         

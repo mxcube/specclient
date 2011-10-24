@@ -31,6 +31,131 @@ import sys
 (DISCONNECTED, PORTSCANNING, WAITINGFORHELLO, CONNECTED) = (1,2,3,4)
 (MIN_PORT, MAX_PORT) = (6510, 6530)
 
+def makeConnection(connection_ref):
+   """Establish a connection to Spec
+
+   If the connection is already established, do nothing.
+   Otherwise, create a socket object and try to connect.
+   If we are in port scanning mode, try to connect using
+   a port defined in the range from MIN_PORT to MAX_PORT
+   """
+   live_connections = weakref.WeakKeyDictionary()
+
+   while True:
+     conn = connection_ref()
+     if conn is None:
+       break
+      
+     if not conn.connected:
+       if conn.scanport:
+         if conn.port is None or conn.port > MAX_PORT:
+           conn.port = MIN_PORT
+         else:
+           conn.port += 1
+
+       while not conn.scanport or conn.port < MAX_PORT:
+           try:
+               s = gevent.socket.create_connection((conn.host, conn.port), timeout=0.2)
+           except socket.error:
+               pass
+           else:
+               gevent.spawn(connectionHandler, connection_ref, s) #gevent.spawn(conn.handle_connection, s)
+               break
+           if conn.scanport:
+               conn.port += 1
+           else:
+               break
+
+     del conn
+     time.sleep(1)
+      
+
+def connectionHandler(connection_ref, socket_to_spec):
+   receivedStrings = []
+   message = None
+   serverVersion = None
+   
+   socket_to_spec.settimeout(None)
+
+   conn = connection_ref()
+   if conn is not None:
+      conn.connected = True
+      conn.state = WAITINGFORHELLO
+      conn.socket = socket_to_spec
+      conn.send_msg_hello()
+      del conn
+
+   while True: 
+      receivedStrings.append(socket_to_spec.recv(4096))
+
+      if receivedStrings[-1] == "":
+         conn = connection_ref()
+         if conn is None:
+            break
+         gevent.spawn(conn.handle_close)
+         del conn
+         break
+                
+      s = ''.join(receivedStrings)
+      consumedBytes = 0
+      offset = 0
+
+      while offset < len(s):
+         if message is None:
+            message = SpecMessage.message(version = serverVersion)
+         
+         consumedBytes = message.readFromStream(s[offset:])
+
+         if consumedBytes == 0:
+            break
+
+         offset += consumedBytes
+
+         if message.isComplete():
+            conn = connection_ref()
+            if conn is None:
+               break
+            
+            try:
+               try:
+                  # dispatch incoming message
+                  if message.cmd == SpecMessage.REPLY:
+                     replyID = message.sn
+                     if replyID > 0:
+                        try:
+                           reply = conn.registeredReplies[replyID]
+                        except:
+                           logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
+                        else:
+                           del conn.registeredReplies[replyID]
+                           gevent.spawn(reply.update, message.data, message.type == SpecMessage.ERROR, message.err)
+                  elif message.cmd == SpecMessage.EVENT:
+                     try:
+                        channel = conn.registeredChannels[self.message.name]
+                     except KeyError:
+                        pass
+                     else:
+                        gevent.spawn(channel.update, message.data, message.flags == SpecMessage.DELETED)
+                  elif message.cmd == SpecMessage.HELLO_REPLY:
+                     if conn.checkourversion(message.name):
+                        serverVersion = message.vers #header version
+                        conn.serverVersion = serverVersion
+                        conn.specConnected()
+                     else:
+                        serverVersion = None
+                        conn.serverVersion = None
+                        conn.connected = False
+                        conn.close()
+                        conn.state = DISCONNECTED
+               except:
+                  receivedStrings = [ s[offset:] ]
+                  raise
+            finally:
+               del conn
+               message = None
+
+         receivedStrings = [ s[offset:] ]
+
 class SpecConnection:
     """SpecConnection class
 
@@ -48,9 +173,6 @@ class SpecConnection:
         """
         self.state = DISCONNECTED
         self.connected = False
-        self.receivedStrings = []
-        self.message = None
-        self.serverVersion = None
         self.scanport = False
         self.scanname = ''
         self.aliasedChannels = {}
@@ -88,35 +210,6 @@ class SpecConnection:
     def __str__(self):
         return '<connection to Spec, host=%s, port=%s>' % (self.host, self.port or self.scanname)
 
-    def makeConnection(self):
-        """Establish a connection to Spec
-
-        If the connection is already established, do nothing.
-        Otherwise, create a socket object and try to connect.
-        If we are in port scanning mode, try to connect using
-        a port defined in the range from MIN_PORT to MAX_PORT
-        """
-        while True:
-          if not self.connected:
-            if self.scanport:
-              if self.port is None or self.port > MAX_PORT:
-                self.port = MIN_PORT
-              else:
-                self.port += 1
-                
-            while not self.scanport or self.port < MAX_PORT:
-                try:
-                    s = gevent.socket.create_connection((self.host, self.port), timeout=0.2)
-                except socket.error:
-                    pass
-                else:
-                    self.connection_greenlet = gevent.spawn(self.handle_connection, s)
-                    break
-                if self.scanport:
-                    self.port += 1 
-                else:
-                    break
-          time.sleep(1)
 
     def registerChannel(self, chanName, receiverSlot, registrationFlag = SpecChannel.DOREG, dispatchMode = SpecEventsDispatcher.UPDATEVALUE):
         """Register a channel
@@ -225,8 +318,6 @@ class SpecConnection:
 
     def specDisconnected(self):
         """Emit the 'disconnected' signal when the remote Spec version is disconnected."""
-        SpecEventsDispatcher.dispatch()
-
         old_state = self.state
         self.state = DISCONNECTED
         if old_state == CONNECTED:
@@ -236,75 +327,6 @@ class SpecConnection:
  
             self.connected_event.clear()
 
-    def handle_connection(self, socket_to_spec):
-        self.socket = socket_to_spec
-        socket_to_spec.settimeout(None) #; self.socket.setblocking(0)
-        self.connected = True
-
-        self.state = WAITINGFORHELLO
-        self.send_msg_hello()
-
-        while True:
-            self.receivedStrings.append(socket_to_spec.recv(4096))
-
-            if self.receivedStrings[-1]=="":
-              return self.handle_close()
-                
-            s = ''.join(self.receivedStrings)
-            consumedBytes = 0
-            offset = 0
-
-            while offset < len(s):
-                if self.message is None:
-                    self.message = SpecMessage.message(version = self.serverVersion)
-
-                consumedBytes = self.message.readFromStream(s[offset:])
-
-                if consumedBytes == 0:
-                    break
-
-                offset += consumedBytes
-
-                if self.message.isComplete():
-                  try:
-                    try:
-                        # dispatch incoming message
-                        if self.message.cmd == SpecMessage.REPLY:
-                            replyID = self.message.sn
-                            if replyID > 0:
-                                try:
-                                    reply = self.registeredReplies[replyID]
-                                except:
-                                    logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
-                                else:
-                                    del self.registeredReplies[replyID]
-
-                                    gevent.spawn(reply.update, self.message.data, self.message.type == SpecMessage.ERROR, self.message.err)
-                        elif self.message.cmd == SpecMessage.EVENT:
-                            try:
-                                channel = self.registeredChannels[self.message.name]
-                            except KeyError:
-                                pass
-                            else:
-                                gevent.spawn(channel.update, self.message.data, self.message.flags == SpecMessage.DELETED)
-                        elif self.message.cmd == SpecMessage.HELLO_REPLY:
-                            if self.checkourversion(self.message.name):
-                                self.serverVersion = self.message.vers #header version
-                                self.specConnected()
-                            else:
-                                self.serverVersion = None
-                                self.connected = False
-                                self.close()
-                                self.state = DISCONNECTED
-                    except:
-                        self.receivedStrings = [ s[offset:] ]
-                        raise
-                  finally:
-                    self.message = None
-
-            self.receivedStrings = [ s[offset:] ]
-        
-            
     def handle_close(self):
         """Handle 'close' event on socket."""
         self.connected = False
@@ -315,18 +337,9 @@ class SpecConnection:
         self.aliasedChannels = {}
         self.specDisconnected()
 
-
     def disconnect(self):
         """Disconnect from the remote Spec version."""
         self.handle_close()
-
-
-    def handle_error(self):
-        """Handle an uncaught error."""
-        exception, error_string, tb = sys.exc_info()
-        # let Python display exception like it wants!
-        sys.excepthook(exception, error_string, tb)
-
 
     def checkourversion(self, name):
         """Check remote Spec version

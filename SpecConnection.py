@@ -145,7 +145,7 @@ def connectionHandler(connection_ref, socket_to_spec):
                         serverVersion = None
                         conn.serverVersion = None
                         conn.connected = False
-                        conn.close()
+                        conn.disconnect()
                         conn.state = DISCONNECTED
                except:
                   receivedStrings = [ s[offset:] ]

@@ -181,11 +181,6 @@ class SpecConnection:
         self.simulationMode = False
         self.connected_event = gevent.event.Event()
 
-        # some shortcuts
-        self.macro       = self.send_msg_cmd_with_return
-        self.macro_noret = self.send_msg_cmd
-        self.abort         = self.send_msg_abort
-
         tmp = str(specVersion).split(':')
         self.host = tmp[0]
 
@@ -210,6 +205,15 @@ class SpecConnection:
     def __str__(self):
         return '<connection to Spec, host=%s, port=%s>' % (self.host, self.port or self.scanname)
 
+    def __getattr__(self, attr):
+        if attr == 'macro':
+          return getattr(self, "send_msg_cmd_with_return")
+        elif attr == 'macro_noret': 
+          return getattr(self, "send_msg_cmd")
+        elif attr == 'abort':
+          return getattr(self, "send_msg_abort")
+        else:
+          raise AttributeError
 
     def registerChannel(self, chanName, receiverSlot, registrationFlag = SpecChannel.DOREG, dispatchMode = SpecEventsDispatcher.UPDATEVALUE):
         """Register a channel

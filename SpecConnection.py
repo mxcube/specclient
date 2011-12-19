@@ -34,41 +34,31 @@ import sys
 def makeConnection(connection_ref):
    """Establish a connection to Spec
 
-   If the connection is already established, do nothing.
-   Otherwise, create a socket object and try to connect.
    If we are in port scanning mode, try to connect using
    a port defined in the range from MIN_PORT to MAX_PORT
    """
-   live_connections = weakref.WeakKeyDictionary()
-
    while True:
      conn = connection_ref()
      if conn is None:
        break
       
-     if not conn.connected:
+     if conn.scanport:
+       if conn.port is None or conn.port > MAX_PORT:
+         conn.port = MIN_PORT
+       else:
+         conn.port += 1
+
+     try:
+       s = gevent.socket.create_connection((conn.host, conn.port), timeout=0.2)
+     except socket.error:
+       del conn
+       time.sleep(0.1)
+     else:
+       connection_greenlet = gevent.spawn(connectionHandler, connection_ref, s)
        if conn.scanport:
-         if conn.port is None or conn.port > MAX_PORT:
-           conn.port = MIN_PORT
-         else:
-           conn.port += 1
-
-       while not conn.scanport or conn.port < MAX_PORT:
-           try:
-               s = gevent.socket.create_connection((conn.host, conn.port), timeout=0.2)
-           except socket.error:
-               pass
-           else:
-               gevent.spawn(connectionHandler, connection_ref, s) #gevent.spawn(conn.handle_connection, s)
-               break
-           if conn.scanport:
-               conn.port += 1
-           else:
-               break
-
-     del conn
-     time.sleep(1)
-      
+         conn.port -= 1
+       del conn
+       connection_greenlet.join() 
 
 def connectionHandler(connection_ref, socket_to_spec):
    receivedStrings = []
@@ -86,13 +76,16 @@ def connectionHandler(connection_ref, socket_to_spec):
       del conn
 
    while True: 
-      receivedStrings.append(socket_to_spec.recv(4096))
+      try:
+        receivedStrings.append(socket_to_spec.recv(4096)) 
+      except:
+        receivedStrings.append("")
 
       if receivedStrings[-1] == "":
          conn = connection_ref()
          if conn is None:
             break
-         gevent.spawn(conn.handle_close)
+         conn.handle_close()
          del conn
          break
                 

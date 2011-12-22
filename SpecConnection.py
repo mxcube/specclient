@@ -140,6 +140,8 @@ def connectionHandler(connection_ref, socket_to_spec):
                         conn.connected = False
                         conn.disconnect()
                         conn.state = DISCONNECTED
+                        if conn.scanport:
+                            conn.port += 1
                except:
                   receivedStrings = [ s[offset:] ]
                   raise

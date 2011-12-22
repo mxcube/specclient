@@ -98,7 +98,7 @@ class SpecMotorA:
 
         # trigger an event on socket => will have no effect (spec reply will be ignored), but SpecEventsDispatcher.dispatch
         # will get called
-        self.connection.send_msg_hello()
+        #self.connection.send_msg_hello()
  
         try: 
           if self.__callbacks.get("connected"):

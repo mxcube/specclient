@@ -255,8 +255,9 @@ class SpecConnection:
           if channelValue is not None:
             # we received a value, so emit an update signal
             channel.update(channelValue,force=True)
-        except Exception,e:
-          traceback.print_exc()
+        except:
+          logging.getLogger("SpecClient").exception("Uncaught exception in SpecConnection.registerChannel")
+
 
     def unregisterChannel(self, chanName):
         """Unregister a channel

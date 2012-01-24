@@ -9,10 +9,10 @@ import types
 
 import numpy as np
 
-from SpecClient.SpecConnectionsManager import SpecConnectionsManager
-from SpecClient import SpecCommand
-from SpecClient import SpecEventsDispatcher
-from SpecClient import SpecWaitObject
+from .SpecConnectionsManager import SpecConnectionsManager
+from . import SpecCommand
+from . import SpecEventsDispatcher
+from . import SpecWaitObject
 
 
 __author__ = 'Matias Guijarro (ESRF) / Darren Dale (CHESS)'

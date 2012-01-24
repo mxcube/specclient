@@ -14,12 +14,12 @@ __version__ = '1.0'
 
 import types
 import logging
-from SpecConnection import SpecClientNotConnectedError
-from SpecReply import SpecReply
+from .SpecConnection import SpecClientNotConnectedError
+from .SpecReply import SpecReply
 import SpecConnectionsManager
 import SpecEventsDispatcher
 import SpecWaitObject
-from SpecClient.SpecClientError import SpecClientTimeoutError
+from .SpecClientError import SpecClientTimeoutError
 
 class BaseSpecCommand:
     """Base class for SpecCommand objects"""

@@ -21,7 +21,7 @@ import types
 import gevent
 
 import SpecEventsDispatcher
-from SpecClient.SpecClientError import SpecClientError, SpecClientTimeoutError
+from .SpecClientError import SpecClientError, SpecClientTimeoutError
 import SpecConnectionsManager
 
 

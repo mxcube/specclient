@@ -20,7 +20,7 @@ import weakref
 import string
 import logging
 import time
-from SpecClient.SpecClientError import SpecClientNotConnectedError
+from .SpecClientError import SpecClientNotConnectedError
 import SpecEventsDispatcher
 import SpecChannel
 import SpecMessage

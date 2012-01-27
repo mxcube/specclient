@@ -198,7 +198,7 @@ class SpecChannel:
                 w = SpecWaitObject.SpecWaitObject(connection)
                 # make sure spec is connected, we give a short timeout
                 # because it is supposed to be the case already
-                w.waitConnection(timeout=500)                                 
+                w.waitConnection(timeout=0.5)                                 
                 w.waitReply('send_msg_chan_read', (self.spec_chan_name, ))
 
                 self.update(w.value)

@@ -185,10 +185,8 @@ class SpecMotorA:
         """
         if channelValue:
             self.__changeMotorState(MOVING)
-            self._ready_state_event.clear()
         elif self.motorState == MOVING or self.motorState == MOVESTARTED or self.motorState == NOTINITIALIZED:
             self.__changeMotorState(READY)
-            self._ready_state_event.set()
 
 
     def __motorLimitHit(self, channelValue, channelName):
@@ -309,6 +307,10 @@ class SpecMotorA:
         state -- the motor state
         """
         self.motorState = state
+        if self.motorState in (UNUSABLE, READY, ONLIMIT):
+          self._ready_state_event.set()
+        else:
+          self._ready_state_event.clear()
 
         try:
           if self.__callbacks.get("motorStateChanged"):

@@ -11,6 +11,8 @@ SpecMotorA -- class representing a motor in Spec, to be used with a GUI
 __author__ = 'Matias Guijarro'
 __version__ = '1.0'
 
+from gevent.event import Event
+from .SpecClientError import SpecClientTimeoutError
 import SpecConnectionsManager
 import SpecEventsDispatcher
 import SpecWaitObject
@@ -31,6 +33,7 @@ class SpecMotorA:
         specName -- name of the motor in Spec (defaults to None)
         specVersion -- 'host:port' string representing a Spec server to connect to (defaults to None)
         """
+        self._ready_state_event = Event()
         self.motorState = NOTINITIALIZED
         self.limit = NOLIMIT
         self.limits = (None, None)
@@ -182,8 +185,10 @@ class SpecMotorA:
         """
         if channelValue:
             self.__changeMotorState(MOVING)
+            self._ready_state_event.clear()
         elif self.motorState == MOVING or self.motorState == MOVESTARTED or self.motorState == NOTINITIALIZED:
             self.__changeMotorState(READY)
+            self._ready_state_event.set()
 
 
     def __motorLimitHit(self, channelValue, channelName):
@@ -325,7 +330,7 @@ class SpecMotorA:
         pass
 
 
-    def move(self, absolutePosition):
+    def move(self, absolutePosition, wait=False, timeout=None):
         """Move the motor to the required position
 
         Arguments:
@@ -339,6 +344,11 @@ class SpecMotorA:
         c = self.connection.getChannel(self.chanNamePrefix % 'start_one')
         
         c.write(absolutePosition)
+
+        if wait:
+          with gevent.Timeout(timeout, SpecClientTimeoutException)
+          self._ready_state_event.clear()
+          self._ready_state_event.wait()
 
 
     def moveRelative(self, relativePosition):

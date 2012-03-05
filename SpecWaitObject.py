@@ -66,7 +66,7 @@ class SpecWaitObject:
         timeout -- optional timeout (defaults to None)
         """
         with gevent.Timeout(timeout, SpecClientTimeoutError):
-            self.waitConnection()
+            self.waitConnection(0.01)
             connection = self.connection()
 
             if connection is not None:
@@ -93,7 +93,7 @@ class SpecWaitObject:
         timeout -- optional timeout (defaults to None)
         """
         with gevent.Timeout(timeout, SpecClientTimeoutError):
-            self.waitConnection()
+            self.waitConnection(0.01)
             connection = self.connection()
 
             if connection is not None:

@@ -346,9 +346,9 @@ class SpecMotorA:
         c.write(absolutePosition)
 
         if wait:
-          with gevent.Timeout(timeout, SpecClientTimeoutException)
-          self._ready_state_event.clear()
-          self._ready_state_event.wait()
+            with gevent.Timeout(timeout, SpecClientTimeoutException):
+                self._ready_state_event.clear()
+                self._ready_state_event.wait()
 
 
     def moveRelative(self, relativePosition):

@@ -14,6 +14,7 @@ __version__ = '1.0'
 
 import types
 import logging
+from gevent.event import Event
 from .SpecConnection import SpecClientNotConnectedError
 from .SpecReply import SpecReply
 import SpecConnectionsManager
@@ -99,10 +100,10 @@ class BaseSpecCommand:
             # Spec knows
             command = [self.command] + list(args)
 
-        return self.executeCommand(command)
+        return self.executeCommand(command, kwargs.get("wait", False))
 
 
-    def executeCommand(self, command):
+    def executeCommand(self, command, wait=False):
         pass
 
 
@@ -121,7 +122,7 @@ class SpecCommand(BaseSpecCommand):
         SpecWaitObject.waitConnection(self.connection, self.__timeout)
 
 
-    def executeCommand(self, command):
+    def executeCommand(self, command, wait=None):
         if self.connection.serverVersion < 3:
             connectionCommand = 'send_msg_cmd_with_return'
         else:
@@ -138,6 +139,8 @@ class SpecCommandA(BaseSpecCommand):
     """SpecCommandA is the asynchronous version of SpecCommand.
     It allows custom waiting by subclassing."""
     def __init__(self, *args, **kwargs):
+        self._reply_arrived_event = Event()
+        self._last_reply = None
         self.__callback = None
         self.__error_callback = None
         self.__callbacks = {
@@ -220,7 +223,8 @@ class SpecCommandA(BaseSpecCommand):
         pass
 
 
-    def executeCommand(self, command):
+    def executeCommand(self, command, wait=False):
+        self._reply_arrived_event.clear()
         self.beginWait()
 
         if self.connection.serverVersion < 3:
@@ -231,6 +235,10 @@ class SpecCommandA(BaseSpecCommand):
             else:
                 id = self.connection.send_msg_func_with_return(command)
 
+        if wait:
+            self._reply_arrived_event.wait()
+            return self._last_reply.error if self._last_reply.error else self._last_reply.data    
+
 
     def __call__(self, *args, **kwargs):
         self.__callback = kwargs.get("callback", None)
@@ -240,6 +248,8 @@ class SpecCommandA(BaseSpecCommand):
 
 
     def replyArrived(self, reply):
+        self._last_reply = reply
+
         if reply.error:
             if callable(self.__error_callback):
                 try:
@@ -254,6 +264,8 @@ class SpecCommandA(BaseSpecCommand):
                 except:
                     logging.getLogger("SpecClient").exception("Error while calling reply callback (command=%s,spec version=%s)", self.command, self.specVersion)
                 self.__callback = None
+
+        self._reply_arrived_event.set()
 
 
     def beginWait(self):

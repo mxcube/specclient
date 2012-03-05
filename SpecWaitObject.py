@@ -65,23 +65,22 @@ class SpecWaitObject:
         argsTuple -- tuple of arguments to be passed to the command
         timeout -- optional timeout (defaults to None)
         """
-        connection = self.connection()
+        with gevent.Timeout(timeout, SpecClientTimeoutError):
+            self.waitConnection()
+            connection = self.connection()
 
-        if connection is not None:
-            try:
-                func = getattr(connection, command)
-            except:
-                return
-            else:
-                self.spec_reply_arrived_event.clear()
-
-                if callable(func):
-                    func(*argsTuple)
-                
+            if connection is not None:
                 try:
-                  self.spec_reply_arrived_event.wait(timeout)
+                    func = getattr(connection, command)
                 except:
-                  raise SpecClientTimeoutError
+                    return
+                else:
+                    self.spec_reply_arrived_event.clear()
+
+                    if callable(func):
+                        func(*argsTuple)
+                    
+                    self.spec_reply_arrived_event.wait(timeout)
                 
 
 
@@ -93,34 +92,32 @@ class SpecWaitObject:
         waitValue -- particular value to wait (defaults to None, meaning any value)
         timeout -- optional timeout (defaults to None)
         """
-        connection = self.connection()
+        with gevent.Timeout(timeout, SpecClientTimeoutError):
+            self.waitConnection()
+            connection = self.connection()
 
-        if connection is not None:
-            self.channelWasUnregistered = False
-            channel = connection.getChannel(chanName)
-            self.channel_updated_event.clear()
-
-            if not channel.registered:
-                self.channelWasUnregistered = True
-                connection.registerChannel(chanName, self.channelUpdated) #channel.register()
-            else:
-                SpecEventsDispatcher.connect(channel, 'valueChanged', self.channelUpdated)
-
-            if waitValue is None:
-              try:
-                self.channel_updated_event.wait(timeout)
-              except:
-                raise SpecClientTimeoutError
-            else:
-              while waitValue != self.value:
-                try:
-                  self.channel_updated_event.wait(timeout)
-                except:
-                  raise SpecClientTimeoutError
+            if connection is not None:
+                self.channelWasUnregistered = False
+                channel = connection.getChannel(chanName)
                 self.channel_updated_event.clear()
 
-            if self.channelWasUnregistered:
-                connection.unregisterChannel(chanName) #channel.unregister()
+                if not channel.registered:
+                    self.channelWasUnregistered = True
+                    connection.registerChannel(chanName, self.channelUpdated) #channel.register()
+                else:
+                    SpecEventsDispatcher.connect(channel, 'valueChanged', self.channelUpdated)
+
+                if waitValue is None:
+                  try:
+                    self.channel_updated_event.wait(timeout)
+                  except:
+                    raise SpecClientTimeoutError
+                else:
+                  while waitValue != self.value:
+                      self.channel_updated_event.wait(timeout)
+
+                if self.channelWasUnregistered:
+                    connection.unregisterChannel(chanName) #channel.unregister()
 
 
     def waitConnection(self, timeout = None):
@@ -133,11 +130,9 @@ class SpecWaitObject:
         timeout -- raise a timeout exception on timeout
         """
         connection = self.connection()
-
-        try:
+        
+        with gevent.Timeout(timeout, SpecClientTimeoutError):
           connection.connected_event.wait(timeout)
-        except: 
-          raise SpecClientTimeoutError
         
 
     def replyArrived(self, reply):
@@ -148,7 +143,6 @@ class SpecWaitObject:
         if reply.error:
             raise SpecClientError('Server request did not complete: %s' % self.value, reply.error_code)
         
-
 
     def channelUpdated(self, channelValue):
         """Callback triggered by a channel update
@@ -176,7 +170,8 @@ def waitConnection(connection, timeout = None):
     w = SpecWaitObject(connection)
 
     wait_greenlet = gevent.spawn(w.waitConnection, timeout=timeout)
-    wait_greenlet.join()
+    wait_greenlet.get()
+
 
 def waitChannelUpdate(chanName, connection, waitValue = None, timeout = None):
     """Wait for a channel to be updated
@@ -190,7 +185,7 @@ def waitChannelUpdate(chanName, connection, waitValue = None, timeout = None):
     w = SpecWaitObject(connection)
 
     wait_greenlet = gevent.spawn(w.waitChannelUpdate, chanName, waitValue = waitValue, timeout=timeout)
-    wait_greenlet.join()
+    wait_greenlet.get()
 
     return w.value
 
@@ -207,7 +202,7 @@ def waitReply(connection, command, argsTuple, timeout = None):
     w = SpecWaitObject(connection)
     
     wait_greenlet = gevent.spawn(w.waitReply, command, argsTuple, timeout=timeout)
-    wait_greenlet.join() 
+    wait_greenlet.get() 
 
     return w.value
 

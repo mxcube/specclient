@@ -156,7 +156,7 @@ class SpecCommandA(BaseSpecCommand):
         BaseSpecCommand.__init__(self, *args, **kwargs)
 
 
-    def connectToSpec(self, specVersion, timeout=200):
+    def connectToSpec(self, specVersion, timeout=0.2):
         if self.connection is not None:
             SpecEventsDispatcher.disconnect(self.connection, 'connected', self._connected)
             SpecEventsDispatcher.disconnect(self.connection, 'disconnected', self._disconnected)
@@ -170,10 +170,8 @@ class SpecCommandA(BaseSpecCommand):
         if self.connection.isSpecConnected():
             self._connected()
         else:
-            try:
+            with gevent.Timeout(timeout, SpecClientTimeoutError):
               SpecWaitObject.waitConnection(self.connection, timeout)
-            except SpecClientTimeoutError:
-              pass
             SpecEventsDispatcher.dispatch()
 
     def connected(self):

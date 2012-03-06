@@ -97,7 +97,6 @@ class EventsQueue(Queue.Queue):
             self.mutex.release()
 
 
-eventsToDispatch = EventsQueue()
 connections = {} # { senderId0: { signal0: [receiver0, ..., receiverN], signal1: [...], ... }, senderId1: ... }
 senders = {} # { senderId: sender, ... }
 
@@ -105,6 +104,7 @@ senders = {} # { senderId: sender, ... }
 def callableObjectRef(object):
     """Return a safe weak reference to a callable object"""
     return saferef.safe_ref(object, _removeReceiver)
+
 
 def connect(sender, signal, slot, dispatchMode = UPDATEVALUE):
     if sender is None or signal is None:
@@ -192,21 +192,10 @@ def emit(sender, signal, arguments = ()):
     else:
       for receiver in receivers:
         receiver(arguments)  
+
  
 def dispatch(max_time_in_s=1):
     return
-    t0 = time.time()
-    while 1:
-        try:
-            receiver, args = eventsToDispatch.get()
-        except IndexError:
-            break
-        else:
-            receiver(args)
-            if max_time_in_s < 0:
-              continue
-            elif (time.time()-t0) >= max_time_in_s:
-              break
 
 
 def _removeSender(senderId):

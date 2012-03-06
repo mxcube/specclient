@@ -14,6 +14,7 @@ __version__ = '1.0'
 
 import types
 import logging
+import gevent
 from gevent.event import Event
 from .SpecConnection import SpecClientNotConnectedError
 from .SpecReply import SpecReply

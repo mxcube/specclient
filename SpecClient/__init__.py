@@ -1,7 +1,12 @@
-#$Id: __init__.py,v 1.3 2005/03/17 12:45:26 guijarro Exp $
 __all__ = ['SpecMotor', 'SpecCounter', 'SpecCommand', 'Spec', 'SpecVariable']
 
 import gevent.monkey; gevent.monkey.patch_all(thread=False)
+
+from . import SpecVariable
+from . import SpecCommand
+from . import SpecMotor
+from . import SpecCounter
+from . import Spec
 
 #
 # create the SpecClient logger

@@ -11,6 +11,7 @@ import SpecEventsDispatcher
 import SpecWaitObject
 import weakref
 import types
+import logging
 
 (DOREG, DONTREG, WAITREG) = (0, 1, 2)
 

@@ -11,6 +11,7 @@ SpecMotorA -- class representing a motor in Spec, to be used with a GUI
 __author__ = 'Matias Guijarro'
 __version__ = '1.0'
 
+import gevent
 from gevent.event import Event
 from .SpecClientError import SpecClientTimeoutError
 import SpecConnectionsManager
@@ -348,7 +349,7 @@ class SpecMotorA:
         c.write(absolutePosition)
 
         if wait:
-            with gevent.Timeout(timeout, SpecClientTimeoutException):
+            with gevent.Timeout(timeout, SpecClientTimeoutError):
                 self._ready_state_event.clear()
                 self._ready_state_event.wait()
 

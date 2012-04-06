@@ -128,7 +128,7 @@ def connectionHandler(connection_ref, socket_to_spec):
                      except KeyError:
                         pass
                      else:
-                        gevent.spawn(channel.update, message.data, message.flags == SpecMessage.DELETED)
+                        channel.update(message.data, message.flags == SpecMessage.DELETED)
                   elif message.cmd == SpecMessage.HELLO_REPLY:
                      if conn.checkourversion(message.name):
                         serverVersion = message.vers #header version

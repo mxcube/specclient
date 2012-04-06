@@ -3,6 +3,7 @@ import exceptions
 import Queue
 import time
 import saferef
+import gevent
 
 (UPDATEVALUE, FIREEVENT) = (1, 2)
 
@@ -191,8 +192,7 @@ def emit(sender, signal, arguments = ()):
       return
     else:
       for receiver in receivers:
-        receiver(arguments)  
-
+        gevent.spawn(receiver, arguments)  
  
 def dispatch(max_time_in_s=1):
     return

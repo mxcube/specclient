@@ -343,19 +343,19 @@ class SpecMotorA:
             logging.getLogger("SpecClient").error("Cannot move %s: position '%s' is not a number", self.specName, absolutePosition)
 
         self.__changeMotorState(MOVESTARTED)
-
+        
         c = self.connection.getChannel(self.chanNamePrefix % 'start_one')
         
         c.write(absolutePosition)
 
         if wait:
-            with gevent.Timeout(timeout, SpecClientTimeoutError):
-                self._ready_state_event.clear()
-                self._ready_state_event.wait()
+            if not self._ready_state_event.wait(timeout):
+              raise SpecClientTimeoutError  
+            
 
 
-    def moveRelative(self, relativePosition):
-        self.move(self.getPosition() + relativePosition)
+    def moveRelative(self, relativePosition, wait=False, timeout=None):
+        self.move(self.getPosition() + relativePosition, wait=wait, timeout=timeout)
 
 
     def moveToLimit(self, limit):

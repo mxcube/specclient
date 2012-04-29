@@ -21,7 +21,7 @@ from .SpecReply import SpecReply
 import SpecConnectionsManager
 import SpecEventsDispatcher
 import SpecWaitObject
-from .SpecClientError import SpecClientTimeoutError
+from .SpecClientError import SpecClientTimeoutError, SpecClientError
 
 class BaseSpecCommand:
     """Base class for SpecCommand objects"""
@@ -236,7 +236,10 @@ class SpecCommandA(BaseSpecCommand):
 
         if wait:
             self._reply_arrived_event.wait()
-            return self._last_reply.error if self._last_reply.error else self._last_reply.data    
+            if self._last_reply.error:
+              raise SpecClientError(self._last_reply.error)
+            else:
+              return self._last_reply.data
 
 
     def __call__(self, *args, **kwargs):

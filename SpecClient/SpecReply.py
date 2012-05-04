@@ -34,6 +34,7 @@ class SpecReply:
         self.error_code = 0 #no error
         self.id = getNextReplyId()
 
+        self.callback = None
 
     def update(self, data, error, error_code):
         """Emit the 'replyFromSpec' signal."""
@@ -41,7 +42,8 @@ class SpecReply:
         self.error = error
         self.error_code = error_code
 
-        SpecEventsDispatcher.emit(self, 'replyFromSpec', (self, ))
+        if callable(self.callback):
+          self.callback(self)
 
 
     def getValue(self):

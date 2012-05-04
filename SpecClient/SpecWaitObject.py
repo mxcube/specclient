@@ -201,8 +201,7 @@ def waitReply(connection, command, argsTuple, timeout = None):
     """
     w = SpecWaitObject(connection)
     
-    wait_greenlet = gevent.spawn(w.waitReply, command, argsTuple, timeout=timeout)
-    wait_greenlet.get() 
+    w.waitReply(command, argsTuple, timeout=timeout)
 
     return w.value
 

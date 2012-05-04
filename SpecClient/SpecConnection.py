@@ -15,6 +15,7 @@ __version__ = '1.0'
 
 import gevent
 import gevent.socket
+import gevent.queue
 import socket
 import weakref
 import string
@@ -60,11 +61,38 @@ def makeConnection(connection_ref):
        del conn
        connection_greenlet.join() 
 
+
+def process_replies(queue):
+   while True:
+     reply, data, is_error, err = queue.get()
+     
+     try:
+       reply.update(data, is_error, err)
+     except:
+       logging.exception("Could not execute reply.update")
+       continue
+
+
+def process_channels(queue):
+  while True:
+    channel, data, deleted_flag = queue.get()
+
+    try:
+      channel.update(data, deleted_flag)
+    except:
+      logging.exception("Could not execute channel.update")
+      continue
+
 def connectionHandler(connection_ref, socket_to_spec):
    receivedStrings = []
    message = None
    serverVersion = None
-   
+   replies_queue = gevent.queue.Queue()
+   channels_queue = gevent.queue.Queue()  
+
+   gevent.spawn(process_replies, replies_queue)
+   gevent.spawn(process_channels, channels_queue)
+
    socket_to_spec.settimeout(None)
 
    conn = connection_ref()
@@ -121,14 +149,14 @@ def connectionHandler(connection_ref, socket_to_spec):
                            logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
                         else:
                            del conn.registeredReplies[replyID]
-                           gevent.spawn(reply.update, message.data, message.type == SpecMessage.ERROR, message.err)
+                           replies_queue.put((reply, message.data, message.type==SpecMessage.ERROR, message.err))
                   elif message.cmd == SpecMessage.EVENT:
                      try:
                         channel = conn.registeredChannels[message.name]
                      except KeyError:
                         pass
                      else:
-                        channel.update(message.data, message.flags == SpecMessage.DELETED)
+                        channels_queue.put((channel, message.data, message.flags == SpecMessage.DELETED))
                   elif message.cmd == SpecMessage.HELLO_REPLY:
                      if conn.checkourversion(message.name):
                         serverVersion = message.vers #header version
@@ -512,11 +540,11 @@ class SpecConnection:
         self.registeredReplies[replyID] = reply
    
         if hasattr(replyReceiverObject, 'replyArrived'):
-            SpecEventsDispatcher.connect(reply, 'replyFromSpec', replyReceiverObject.replyArrived)
+            reply.callback = replyReceiverObject.replyArrived
 
         self.__send_msg_no_reply(message)
 
-        return replyID
+        return reply #print "REPLY ID", replyID
 
 
     def __send_msg_no_reply(self, message):

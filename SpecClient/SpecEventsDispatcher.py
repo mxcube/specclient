@@ -192,7 +192,7 @@ def emit(sender, signal, arguments = ()):
       return
     else:
       for receiver in receivers:
-        gevent.spawn(receiver, arguments)  
+        receiver(arguments)
  
 def dispatch(max_time_in_s=1):
     return

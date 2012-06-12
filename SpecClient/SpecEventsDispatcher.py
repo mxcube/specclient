@@ -3,6 +3,7 @@ import exceptions
 import time
 import saferef
 import gevent
+import logging
 from .SpecClientError import SpecClientDispatcherError
 
 (UPDATEVALUE, FIREEVENT) = (1, 2)
@@ -152,8 +153,12 @@ def emit(sender, signal, arguments = ()):
       return
     else:
       for receiver in receivers:
-        receiver(arguments)
- 
+          try:
+              receiver(arguments)
+          except:
+              logging.getLogger("SpecClient").exception("Exception while calling receiver %s for signal %s", receiver, signal)
+              continue
+              
 def dispatch(max_time_in_s=1):
     return
 

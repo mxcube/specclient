@@ -90,8 +90,8 @@ def connectionHandler(connection_ref, socket_to_spec):
    replies_queue = gevent.queue.Queue()
    channels_queue = gevent.queue.Queue()  
 
-   gevent.spawn(process_replies, replies_queue)
-   gevent.spawn(process_channels, channels_queue)
+   process_replies_greenlet = gevent.spawn(process_replies, replies_queue)
+   process_channels_greenlet = gevent.spawn(process_channels, channels_queue)
 
    socket_to_spec.settimeout(None)
 
@@ -161,7 +161,7 @@ def connectionHandler(connection_ref, socket_to_spec):
                      if conn.checkourversion(message.name):
                         serverVersion = message.vers #header version
                         conn.serverVersion = serverVersion
-                        conn.specConnected()
+                        gevent.spawn(conn.specConnected)
                      else:
                         serverVersion = None
                         conn.serverVersion = None
@@ -178,6 +178,10 @@ def connectionHandler(connection_ref, socket_to_spec):
                message = None
 
          receivedStrings = [ s[offset:] ]
+
+   process_replies_greenlet.kill()
+   process_channels_greenlet.kill()
+   
 
 class SpecConnection:
     """SpecConnection class
@@ -340,9 +344,10 @@ class SpecConnection:
         if old_state != CONNECTED:
             logging.getLogger('SpecClient').info('Connected to %s:%s', self.host, (self.scanport and self.scanname) or self.port)
 
+            self.connected_event.set()
+            
             SpecEventsDispatcher.emit(self, 'connected', ())
 
-            self.connected_event.set()
 
     def specDisconnected(self):
         """Emit the 'disconnected' signal when the remote Spec version is disconnected."""

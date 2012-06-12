@@ -1,16 +1,11 @@
 import weakref
 import exceptions
-import Queue
 import time
 import saferef
 import gevent
+from .SpecClientError import SpecClientDispatcherError
 
 (UPDATEVALUE, FIREEVENT) = (1, 2)
-
-class SpecClientDispatcherError(exceptions.Exception):
-    def __init__(self, args=None):
-        self.args = args
-
 
 def robustApply(slot, arguments = ()):
     """Call slot with appropriate number of arguments"""
@@ -61,41 +56,6 @@ class Event:
             self.receivers = connections[senderId][signal]
         except:
             pass
-
-
-class EventsQueue(Queue.Queue):
-    def __init__(self):
-        Queue.Queue.__init__(self, 0)
-
-
-    def get(self):
-        """Remove and return an item from the queue."""
-        try:
-            return Queue.Queue.get(self, False)
-        except Queue.Empty:
-            raise IndexError
-
-
-    def put(self, event):
-        """Put an event into the queue."""
-        receiversList = event.receivers
-
-        self.mutex.acquire()
-        try:
-            was_empty = not self._qsize()
-
-            for r in receiversList:
-                if not was_empty:
-                    if r.dispatchMode == UPDATEVALUE:
-                        for i in range(len(self.queue)):
-                            _r, args = self.queue[i]
-                            if r == _r:
-                                del self.queue[i]
-                                break
-
-                self._put( (r, event.args) )
-        finally:
-            self.mutex.release()
 
 
 connections = {} # { senderId0: { signal0: [receiver0, ..., receiverN], signal1: [...], ... }, senderId1: ... }

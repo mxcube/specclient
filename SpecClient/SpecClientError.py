@@ -19,3 +19,7 @@ class SpecClientTimeoutError(SpecClientError):
 
 class SpecClientNotConnectedError(SpecClientError):
     pass
+
+class SpecClientDispatcherError(SpecClientError):
+    pass
+

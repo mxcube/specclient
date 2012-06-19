@@ -34,7 +34,6 @@ class abort_spec_on_exception:
     if type is not None:
       if not isinstance(type, SpecClientError):
         # abort from Python => have to abort in spec
-        logging.getLogger("SpecClient").info("Aborting spec command %s", self.cmd)
         self.cmd.abort()
 
 def wait_end_of_spec_cmd(cmd_obj):

@@ -23,27 +23,14 @@ import SpecEventsDispatcher
 import SpecWaitObject
 from .SpecClientError import SpecClientTimeoutError, SpecClientError
 
-class abort_spec_on_exception:
-  def __init__(self, cmd):
-    self.cmd = cmd
-
-  def __enter__(self):
-    pass
-
-  def __exit__(self, type, value, traceback):
-    if type is not None:
-      if not isinstance(type, SpecClientError):
-        # abort from Python => have to abort in spec
-        self.cmd.abort()
 
 def wait_end_of_spec_cmd(cmd_obj):
-  with abort_spec_on_exception(cmd_obj):
-     cmd_obj._reply_arrived_event.wait()
+   cmd_obj._reply_arrived_event.wait()
 
-     if cmd_obj._last_reply.error:
-        raise SpecClientError(cmd_obj._last_reply.error)
-     else:
-        return cmd_obj._last_reply.data
+   if cmd_obj._last_reply.error:
+      raise SpecClientError("command %r aborted from spec", cmd_obj.command)
+   else:
+      return cmd_obj._last_reply.data
 
 
 class BaseSpecCommand:
@@ -259,7 +246,14 @@ class SpecCommandA(BaseSpecCommand):
 
         task = gevent.spawn(wait_end_of_spec_cmd, self)
         if wait:
-            return task.get(timeout=timeout)
+            try:
+              return task.get(timeout=timeout)
+            except SpecClientError:
+              raise
+            except:
+              # abort spec
+              self.abort()
+              raise 
         else:
             return task
 

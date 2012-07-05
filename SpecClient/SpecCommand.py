@@ -28,7 +28,7 @@ def wait_end_of_spec_cmd(cmd_obj):
    cmd_obj._reply_arrived_event.wait()
 
    if cmd_obj._last_reply.error:
-      raise SpecClientError("command %r aborted from spec", cmd_obj.command)
+      raise SpecClientError("command %r aborted from spec" % cmd_obj.command)
    else:
       return cmd_obj._last_reply.data
 

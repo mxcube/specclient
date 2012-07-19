@@ -19,10 +19,26 @@ import weakref
 import time
 import types
 import gevent
+from gevent.util import wrap_errors
 
 import SpecEventsDispatcher
 from .SpecClientError import SpecClientError, SpecClientTimeoutError
 import SpecConnectionsManager
+
+
+def spawn_greenlet(func, *args, **kwargs):
+    t = gevent.spawn(wrap_errors(Exception, func), *args)
+
+    t._get = t.get
+    def new_get(self, *args, **kwargs):
+       ret = self._get(*args, **kwargs)
+       if isinstance(ret, Exception):
+           raise ret
+       else:
+           return ret
+       setattr(t, "get", types.MethodType(new_get, t))
+
+    return t
 
 
 class SpecWaitObject:
@@ -169,7 +185,7 @@ def waitConnection(connection, timeout = None):
     """
     w = SpecWaitObject(connection)
 
-    wait_greenlet = gevent.spawn(w.waitConnection, timeout=timeout)
+    wait_greenlet = spawn_greenlet(w.waitConnection, timeout=timeout)
     wait_greenlet.get()
 
 
@@ -184,7 +200,7 @@ def waitChannelUpdate(chanName, connection, waitValue = None, timeout = None):
     """
     w = SpecWaitObject(connection)
 
-    wait_greenlet = gevent.spawn(w.waitChannelUpdate, chanName, waitValue = waitValue, timeout=timeout)
+    wait_greenlet = spawn_greenlet(w.waitChannelUpdate, chanName, waitValue = waitValue, timeout=timeout)
     wait_greenlet.get()
 
     return w.value

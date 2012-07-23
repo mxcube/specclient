@@ -208,6 +208,7 @@ class SpecConnection:
         self.simulationMode = False
         self.connected_event = gevent.event.Event()
         self.outgoing_queue = []
+        self.socket_write_event = None
 
         tmp = str(specVersion).split(':')
         self.host = tmp[0]
@@ -558,6 +559,7 @@ class SpecConnection:
         if not buffer:
           self.socket_write_event.stop()
           self.socket_write_event = None
+          return
         sent_bytes = self.socket.send(buffer)
         self.outgoing_queue = [buffer[sent_bytes:]]
 
@@ -570,6 +572,7 @@ class SpecConnection:
         lost.
         """
         self.outgoing_queue.append(message.sendingString()) 
-        self.socket_write_event = gevent.get_hub().loop.io(self.socket.fileno(), 2)
-        self.socket_write_event.start(self.__do_send_data)
+        if self.socket_write_event is None:
+          self.socket_write_event = gevent.get_hub().loop.io(self.socket.fileno(), 2)
+          self.socket_write_event.start(self.__do_send_data)
 

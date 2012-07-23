@@ -207,6 +207,7 @@ class SpecConnection:
         self.registeredReplies = {}
         self.simulationMode = False
         self.connected_event = gevent.event.Event()
+        self.outgoing_queue = []
 
         tmp = str(specVersion).split(':')
         self.host = tmp[0]
@@ -552,6 +553,15 @@ class SpecConnection:
         return reply #print "REPLY ID", replyID
 
 
+    def __do_send_data(self):
+        buffer = "".join(self.outgoing_queue)
+        if not buffer:
+          self.socket_write_event.stop()
+          self.socket_write_event = None
+        sent_bytes = self.socket.send(buffer)
+        self.outgoing_queue = [buffer[sent_bytes:]]
+
+
     def __send_msg_no_reply(self, message):
         """Send a message to the remote Spec.
 
@@ -559,4 +569,7 @@ class SpecConnection:
         method to send the message. Using this method, any reply is
         lost.
         """
-        self.socket.sendall(message.sendingString())
+        self.outgoing_queue.append(message.sendingString()) 
+        self.socket_write_event = gevent.get_hub().loop.io(self.socket.fileno(), 2)
+        self.socket_write_event.start(self.__do_send_data)
+

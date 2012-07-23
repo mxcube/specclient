@@ -179,7 +179,7 @@ class SpecChannel:
         SpecEventsDispatcher.emit(self, 'valueChanged', (value2emit, self.name, ))
 
 
-    def read(self):
+    def read(self, timeout=1):
         """Read the channel value
 
         If channel is registered, just return the internal value,
@@ -198,7 +198,7 @@ class SpecChannel:
             if connection is not None:
                 # make sure spec is connected, we give a short timeout
                 # because it is supposed to be the case already
-                value = SpecWaitObject.waitReply(connection, 'send_msg_chan_read', (self.spec_chan_name, ))
+                value = SpecWaitObject.waitReply(connection, 'send_msg_chan_read', (self.spec_chan_name, ), timeout=timeout)
 
                 self.update(value)
 

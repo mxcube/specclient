@@ -199,10 +199,7 @@ class SpecChannel:
                 # make sure spec is connected, we give a short timeout
                 # because it is supposed to be the case already
                 value = SpecWaitObject.waitReply(connection, 'send_msg_chan_read', (self.spec_chan_name, ), timeout=timeout)
-
-                self.update(value)
-
-        return self.value
+                return value
 
 
     def write(self, value):

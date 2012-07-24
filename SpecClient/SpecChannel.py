@@ -179,7 +179,7 @@ class SpecChannel:
         SpecEventsDispatcher.emit(self, 'valueChanged', (value2emit, self.name, ))
 
 
-    def read(self, timeout=1):
+    def read(self, timeout=3):
         """Read the channel value
 
         If channel is registered, just return the internal value,

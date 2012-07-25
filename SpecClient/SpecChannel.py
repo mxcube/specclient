@@ -9,6 +9,9 @@ __version__ = '1.0'
 
 import SpecEventsDispatcher
 import SpecWaitObject
+from .SpecClientError import SpecClientTimeoutError
+import time
+import gevent
 import weakref
 import types
 import logging
@@ -185,13 +188,17 @@ class SpecChannel:
         If channel is registered, just return the internal value,
         else obtain the channel value and return it.
         """
-        if self.registered and self.value is not None:
-            #we check 'value is not None' because the
-            #'registered' flag could be set, but before
-            #the message with the channel value arrived ;
-            #in this case, the 'else' is executed and the
-            #channel value is read (slower...)
-            return self.value
+        if self.registered:
+            if self.value is not None:
+              #we check 'value is not None' because the
+              #'registered' flag could be set, but before
+              #the message with the channel value arrived 
+              return self.value
+            else:
+              with gevent.Timeout(timeout, SpecClientTimeoutError):
+                while self.value is None:
+                  time.sleep(0.1)
+              return self.value
         else:
             connection = self.connection()
 

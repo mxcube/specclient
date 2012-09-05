@@ -1,6 +1,6 @@
 __all__ = ['SpecMotor', 'SpecCounter', 'SpecCommand', 'Spec', 'SpecVariable']
 
-import gevent.monkey; gevent.monkey.patch_all(thread=False)
+import gevent.monkey; gevent.monkey.patch_all(thread=False, subprocess=False)
 
 from . import SpecVariable
 from . import SpecCommand

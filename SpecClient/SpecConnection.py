@@ -87,11 +87,11 @@ def connectionHandler(connection_ref, socket_to_spec):
    receivedStrings = []
    message = None
    serverVersion = None
-   replies_queue = gevent.queue.Queue()
-   channels_queue = gevent.queue.Queue()  
+   #replies_queue = gevent.queue.Queue()
+   #channels_queue = gevent.queue.Queue()  
 
-   process_replies_greenlet = gevent.spawn(process_replies, replies_queue)
-   process_channels_greenlet = gevent.spawn(process_channels, channels_queue)
+   #process_replies_greenlet = gevent.spawn(process_replies, replies_queue)
+   #process_channels_greenlet = gevent.spawn(process_channels, channels_queue)
 
    socket_to_spec.settimeout(None)
 
@@ -149,19 +149,24 @@ def connectionHandler(connection_ref, socket_to_spec):
                            logging.getLogger("SpecClient").exception("Unexpected error while receiving a message from server")
                         else:
                            del conn.registeredReplies[replyID]
-                           replies_queue.put((reply, message.data, message.type==SpecMessage.ERROR, message.err))
+                           #replies_queue.put((reply, message.data, message.type==SpecMessage.ERROR, message.err))
+                           gevent.spawn(reply.update, message.data, message.type==SpecMessage.ERROR, message.err)
+                           time.sleep(1E-6)
                   elif message.cmd == SpecMessage.EVENT:
                      try:
                         channel = conn.registeredChannels[message.name]
                      except KeyError:
                         pass
                      else:
-                        channels_queue.put((channel, message.data, message.flags == SpecMessage.DELETED))
+                        #channels_queue.put((channel, message.data, message.flags == SpecMessage.DELETED))
+                        gevent.spawn(channel.update, message.data, message.flags == SpecMessage.DELETED)
+                        time.sleep(1E-6)
                   elif message.cmd == SpecMessage.HELLO_REPLY:
                      if conn.checkourversion(message.name):
                         serverVersion = message.vers #header version
                         conn.serverVersion = serverVersion
                         gevent.spawn(conn.specConnected)
+                        time.sleep(1E-6)
                      else:
                         serverVersion = None
                         conn.serverVersion = None
@@ -179,8 +184,8 @@ def connectionHandler(connection_ref, socket_to_spec):
 
          receivedStrings = [ s[offset:] ]
 
-   process_replies_greenlet.kill()
-   process_channels_greenlet.kill()
+   #process_replies_greenlet.kill()
+   #process_channels_greenlet.kill()
    
 
 class SpecConnection:

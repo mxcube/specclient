@@ -111,10 +111,10 @@ class BaseSpecCommand:
             # Spec knows
             command = [self.command] + list(args)
 
-        return self.executeCommand(command, kwargs.get("wait", False))
+        return self.executeCommand(command, kwargs.get("wait", False), kwargs.get("timeout"))
 
 
-    def executeCommand(self, command, wait=False):
+    def executeCommand(self, command, wait=False, timeout=None):
         pass
 
 
@@ -133,7 +133,7 @@ class SpecCommand(BaseSpecCommand):
         SpecWaitObject.waitConnection(self.connection, self.__timeout)
 
 
-    def executeCommand(self, command, wait=None):
+    def executeCommand(self, command, wait=None, timeout=None):
         if self.connection.serverVersion < 3:
             connectionCommand = 'send_msg_cmd_with_return'
         else:
@@ -185,8 +185,10 @@ class SpecCommandA(BaseSpecCommand):
               SpecWaitObject.waitConnection(self.connection, timeout)
             SpecEventsDispatcher.dispatch()
 
+
     def connected(self):
         pass
+
 
     def _connected(self):
         self.connection.registerChannel("status/ready", self._statusChanged)
@@ -201,6 +203,7 @@ class SpecCommandA(BaseSpecCommand):
                     cb()
         finally:
             self.connected()
+
 
     def _disconnected(self):
         try:

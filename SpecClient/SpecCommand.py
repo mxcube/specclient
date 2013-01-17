@@ -12,6 +12,7 @@ SpecCommandA
 __author__ = 'Matias Guijarro'
 __version__ = '1.0'
 
+import sys
 import types
 import logging
 import gevent
@@ -22,6 +23,30 @@ import SpecConnectionsManager
 import SpecEventsDispatcher
 import SpecWaitObject
 from .SpecClientError import SpecClientTimeoutError, SpecClientError
+
+
+class wrap_errors(object):
+    def __init__(self, func):
+        """Make a new function from `func', such that it catches all exceptions
+        and return it as a TaskException object
+        """
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        func = self.func
+        try:
+            return func(*args, **kwargs)
+        except Exception, e:
+            return SpecClientError(e)
+
+    def __str__(self):
+        return str(self.func)
+
+    def __repr__(self):
+        return repr(self.func)
+
+    def __getattr__(self, item):
+        return getattr(self.func, item)
 
 
 def wait_end_of_spec_cmd(cmd_obj):
@@ -247,7 +272,7 @@ class SpecCommandA(BaseSpecCommand):
             else:
                 id = self.connection.send_msg_func_with_return(command)
 
-        task = gevent.spawn(wait_end_of_spec_cmd, self)
+        task = gevent.spawn(wrap_errors(wait_end_of_spec_cmd), self)
         if wait:
             try:
               return task.get(timeout=timeout)

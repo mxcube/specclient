@@ -60,26 +60,25 @@ def wait_end_of_spec_cmd(cmd_obj):
 
 class BaseSpecCommand:
     """Base class for SpecCommand objects"""
-    def __init__(self, command = None, connection = None, callbacks = None):
+    def __init__(self, command = None, connection = None, callbacks = None, timeout=None):
         self.command = None
         self.connection = None
         self.specVersion = None
         self.isConnected = self.isSpecConnected #alias
-
+        if command is not None:
+            self.setCommand(command)
+            
         if connection is not None:
             if type(connection) in (types.UnicodeType, types.StringType):
                 #
                 # connection is given in the 'host:port' form
                 #
-                self.connectToSpec(str(connection))
+                self.connectToSpec(str(connection), timeout)
             else:
                 self.connection = connection
 
-        if command is not None:
-            self.setCommand(command)
 
-
-    def connectToSpec(self, specVersion):
+    def connectToSpec(self, specVersion, timeout=None):
         pass
 
 
@@ -143,34 +142,6 @@ class BaseSpecCommand:
         pass
 
 
-
-class SpecCommand(BaseSpecCommand):
-    """SpecCommand objects execute macros and wait for results to get back"""
-    def __init__(self, command, connection, timeout = None):
-        self.__timeout = timeout
-        BaseSpecCommand.__init__(self, command, connection)
-
-
-    def connectToSpec(self, specVersion):
-        self.connection = SpecConnectionsManager.SpecConnectionsManager().getConnection(specVersion)
-        self.specVersion = specVersion
-
-        SpecWaitObject.waitConnection(self.connection, self.__timeout)
-
-
-    def executeCommand(self, command, wait=None, timeout=None):
-        if self.connection.serverVersion < 3:
-            connectionCommand = 'send_msg_cmd_with_return'
-        else:
-            if type(command) == types.StringType:
-                connectionCommand = 'send_msg_cmd_with_return'
-            else:
-                connectionCommand = 'send_msg_func_with_return'
-
-        return SpecWaitObject.waitReply(self.connection, connectionCommand, (command, ), self.__timeout)
-
-
-
 class SpecCommandA(BaseSpecCommand):
     """SpecCommandA is the asynchronous version of SpecCommand.
     It allows custom waiting by subclassing."""
@@ -192,7 +163,7 @@ class SpecCommandA(BaseSpecCommand):
         BaseSpecCommand.__init__(self, *args, **kwargs)
 
 
-    def connectToSpec(self, specVersion, timeout=0.2):
+    def connectToSpec(self, specVersion, timeout=None):
         if self.connection is not None:
             SpecEventsDispatcher.disconnect(self.connection, 'connected', self._connected)
             SpecEventsDispatcher.disconnect(self.connection, 'disconnected', self._disconnected)
@@ -205,11 +176,7 @@ class SpecCommandA(BaseSpecCommand):
 
         if self.connection.isSpecConnected():
             self._connected()
-        else:
-            with gevent.Timeout(timeout, SpecClientTimeoutError):
-              SpecWaitObject.waitConnection(self.connection, timeout)
-            SpecEventsDispatcher.dispatch()
-
+        
 
     def connected(self):
         pass
@@ -326,11 +293,35 @@ class SpecCommandA(BaseSpecCommand):
 
 
 
+class SpecCommand(SpecCommandA):
+    def __init__(self, *args, **kwargs):
+        SpecCommandA.__init__(self, *args, **kwargs)
 
+    def connectToSpec(self, specVersion, timeout):
+        SpecCommandA.connectToSpec(self, specVersion, timeout)
 
+        if not self.connection.isSpecConnected():
+            with gevent.Timeout(timeout, SpecClientTimeoutError):
+                SpecWaitObject.waitConnection(self.connection, timeout)
+            self._connected()
+        
+    def abort(self):
+        if self.connection is None or not self.connection.isSpecConnected():
+            return
 
+        self.connection.abort(wait=True)
 
+    def __call__(self, *args, **kwargs):
+        self.__callback = kwargs.get("callback", None)
+        self.__error_callback = kwargs.get("error_callback", None)
 
+        wait = kwargs.get("wait", True)
+        timeout = kwargs.get("timeout", None)
+        return SpecCommandA.__call__(self, *args, wait=wait, timeout=timeout)
+
+    def executeCommand(self, command, wait=True, timeout=None):
+        return SpecCommandA.executeCommand(self, command, wait, timeout)
+         
 
 
 

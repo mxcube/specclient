@@ -182,13 +182,13 @@ class SpecChannel:
         SpecEventsDispatcher.emit(self, 'valueChanged', (value2emit, self.name, ))
 
 
-    def read(self, timeout=3):
+    def read(self, timeout=3, force_read=False):
         """Read the channel value
 
         If channel is registered, just return the internal value,
         else obtain the channel value and return it.
         """
-        if self.registered:
+        if not force_read and self.registered:
             if self.value is not None:
               #we check 'value is not None' because the
               #'registered' flag could be set, but before
@@ -209,7 +209,7 @@ class SpecChannel:
                 return value
 
 
-    def write(self, value):
+    def write(self, value, wait=False):
         """Write a channel value."""
         connection = self.connection()
 
@@ -220,7 +220,7 @@ class SpecChannel:
                 else:
                     value = { self.access1: { self.access2: value } }
 
-            connection.send_msg_chan_send(self.spec_chan_name, value)
+            connection.send_msg_chan_send(self.spec_chan_name, value, wait)
 
 
 

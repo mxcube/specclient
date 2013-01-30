@@ -212,6 +212,7 @@ class SpecConnection:
         self.registeredReplies = {}
         self.simulationMode = False
         self.connected_event = gevent.event.Event()
+        self._completed_writing_event = gevent.event.Event()
         self.outgoing_queue = []
         self.socket_write_event = None
 
@@ -479,7 +480,7 @@ class SpecConnection:
             raise SpecClientNotConnectedError
 
 
-    def send_msg_chan_send(self, chanName, value):
+    def send_msg_chan_send(self, chanName, value, wait=False):
         """Send a channel write message.
 
         Arguments:
@@ -487,7 +488,7 @@ class SpecConnection:
         value -- channel value
         """
         if self.isSpecConnected():
-            self.__send_msg_no_reply(SpecMessage.msg_chan_send(chanName, value, version = self.serverVersion))
+            self.__send_msg_no_reply(SpecMessage.msg_chan_send(chanName, value, version = self.serverVersion), wait)
         else:
             raise SpecClientNotConnectedError
 
@@ -524,10 +525,10 @@ class SpecConnection:
             raise SpecClientNotConnectedError
 
 
-    def send_msg_abort(self):
+    def send_msg_abort(self, wait=False):
         """Send an abort message."""
         if self.isSpecConnected():
-            self.__send_msg_no_reply(SpecMessage.msg_abort(version = self.serverVersion))
+            self.__send_msg_no_reply(SpecMessage.msg_abort(version = self.serverVersion), wait)
         else:
             raise SpecClientNotConnectedError
 
@@ -562,14 +563,15 @@ class SpecConnection:
     def __do_send_data(self):
         buffer = "".join(self.outgoing_queue)
         if not buffer:
-          self.socket_write_event.stop()
-          self.socket_write_event = None
-          return
+           self.socket_write_event.stop()
+           self.socket_write_event = None
+           self._completed_writing_event.set()
+           return
         sent_bytes = self.socket.send(buffer)
         self.outgoing_queue = [buffer[sent_bytes:]]
 
 
-    def __send_msg_no_reply(self, message):
+    def __send_msg_no_reply(self, message, wait=False):
         """Send a message to the remote Spec.
 
         If a reply is sent depends only on the message, and not on the
@@ -578,6 +580,11 @@ class SpecConnection:
         """
         self.outgoing_queue.append(message.sendingString()) 
         if self.socket_write_event is None:
-          self.socket_write_event = gevent.get_hub().loop.io(self.socket.fileno(), 2)
-          self.socket_write_event.start(self.__do_send_data)
+           if wait:
+              self._completed_writing_event.clear()
+           self.socket_write_event = gevent.get_hub().loop.io(self.socket.fileno(), 2)
+           self.socket_write_event.start(self.__do_send_data)
+           if wait:
+              self._completed_writing_event.wait()
+          
 

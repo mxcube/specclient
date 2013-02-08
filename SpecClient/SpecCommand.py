@@ -28,7 +28,7 @@ from .SpecClientError import SpecClientTimeoutError, SpecClientError
 class wrap_errors(object):
     def __init__(self, func):
         """Make a new function from `func', such that it catches all exceptions
-        and return it as a TaskException object
+        and return it as a SpecClientError object
         """
         self.func = func
 
@@ -239,18 +239,31 @@ class SpecCommandA(BaseSpecCommand):
             else:
                 id = self.connection.send_msg_func_with_return(command)
 
-        task = gevent.spawn(wrap_errors(wait_end_of_spec_cmd), self)
+        t = gevent.spawn(wrap_errors(wait_end_of_spec_cmd), self)
+
         if wait:
-            try:
-              return task.get(timeout=timeout)
-            except SpecClientError:
+            ret = t.get(timeout = timeout)
+            if isinstance(ret, SpecClientError):
+              raise ret
+            elif isinstance(ret, Exception):
+              self.abort() #abort spec
               raise
-            except:
-              # abort spec
-              self.abort()
-              raise 
+            else:
+              return ret
         else:
-            return task
+            t._get = t.get
+            def special_get(self, *args, **kwargs):
+              ret = self._get(*args, **kwargs)
+              if isinstance(ret, SpecClientError):
+                raise ret
+              elif isinstance(ret, Exception):
+                self.abort() #abort spec
+                raise
+              else:
+                return ret
+            setattr(t, "get", types.MethodType(special_get, t))
+
+            return t
 
 
     def __call__(self, *args, **kwargs):

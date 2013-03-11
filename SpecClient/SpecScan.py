@@ -87,7 +87,6 @@ def simple_eval(source):
 
 
 class SpecScanA:
-
     @property
     def paused(self):
         # False when a scan is running or has completed normally
@@ -107,11 +106,21 @@ class SpecScanA:
     def specVersion(self):
         return self.__specVersion
 
-    def __init__(self, specVersion = None):
+    def __init__(self, specVersion = None, callbacks={}):
         self.scanParams = {}
         self.scanCounterMne = None
         self.__status = 'ready'
         self.__specVersion = None
+
+        self.__callbacks = {
+          'connected': None,
+          'disconnected': None,
+          'newScan': None,
+          'newPoint': None,
+        }
+        for cb_name in self.__callbacks.iterkeys():
+          if callable(callbacks.get(cb_name)):
+            self.__callbacks[cb_name] = SpecEventsDispatcher.callableObjectRef(callbacks[cb_name])
 
         if specVersion is not None:
             self.connectToSpec(specVersion)
@@ -147,7 +156,15 @@ class SpecScanA:
        self.connection.registerChannel('var/_SC_NEWSCANDATA',
                                     self.__newScanData,
                                     dispatchMode=SpecEventsDispatcher.FIREEVENT)
-       self.connected()
+       
+       try: 
+           if self.__callbacks.get("connected"):
+               cb = self.__callbacks["connected"]()
+               if cb is not None:
+                   cb()
+       finally:
+           self.connected()
+          
 
     def connected(self):
         pass
@@ -158,7 +175,13 @@ class SpecScanA:
         self.__status = 'ready'
         self.scanParams = {}
 
-        self.disconnected()
+        try: 
+          if self.__callbacks.get("disconnected"):
+            cb = self.__callbacks["disconnected"]()
+            if cb is not None:
+              cb()
+        finally:
+            self.disconnected()
 
 
     def disconnected(self):
@@ -198,7 +221,13 @@ class SpecScanA:
         if type(self.scanParams) != types.DictType:
             return
 
-        self.newScan(self.scanParams)
+        try: 
+          if self.__callbacks.get("newScan"):
+            cb = self.__callbacks["newScan"]()
+            if cb is not None:
+              cb(self.scanParams)
+        finally:
+            self.newScan(self.scanParams)
 
         self.scanCounterMne = self.scanParams.get('counter')
         if (not self.scanCounterMne) or self.scanCounterMne == '?':
@@ -243,12 +272,21 @@ class SpecScanA:
             x = scanData['x']
             y = scanData[self.scanCounterMne]
 
-            # hack to know if we should call newScanPoint with
-            # scanData or not (for backward compatiblity)
-            if len(self.newScanPoint.im_func.func_code.co_varnames) > 4:
-              self.newScanPoint(i, x, y, scanData)
-            else:
-              self.newScanPoint(i, x, y)
+            try: 
+                if self.__callbacks.get("newPoint"):
+                    cb = self.__callbacks["newPoint"]()
+                    if cb is not None:
+                        if len(cb.im_func.func_code.co_varnames) > 4:
+                            cb(i, x, y, scanData)
+                        else:
+                            cb(i, x, y)
+            finally:
+                # hack to know if we should call newScanPoint with
+                # scanData or not (for backward compatiblity)
+                if len(self.newScanPoint.im_func.func_code.co_varnames) > 4:
+                    self.newScanPoint(i, x, y, scanData)
+                else:
+                    self.newScanPoint(i, x, y)
 
 
     def newScanPoint(self, i, x, y, counters_value):

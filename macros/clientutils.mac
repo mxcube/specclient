@@ -57,29 +57,33 @@ def python_repr(value) '{
     local sval
 
     if ((whatis("value")&0x00010000)) {
-        local rows cols i j
-        rows = array_op("rows", value)
-        cols = array_op("cols", value)
-        sval = ""
-        if (rows == 1) {
-            for(i = 0; i < cols; i++){
-                sval = sprintf("%s%g,", sval, value[0][i])
-            }
-        } else if (cols == 1) {
-            for(i = 0; i < rows; i++){
-                sval = sprintf("%s%g,", sval, value[i][0])
-            }
+        if ((whatis("encode")&0x00000001)) {
+            sval = encode("json", value)
         } else {
-            local row
-            for(i = 0; i < rows; i++){
-                row = ""
-                for(j = 0; j < cols; j++){
-                    row = sprintf("%s%g,", row, value[i][j])
+            local rows cols i j
+            rows = array_op("rows", value)
+            cols = array_op("cols", value)
+            sval = ""
+            if (rows == 1) {
+                for(i = 0; i < cols; i++){
+                    sval = sprintf("%s%g,", sval, value[0][i])
                 }
-                sval = sprintf("%s[%s],", sval, row)
+            } else if (cols == 1) {
+                for(i = 0; i < rows; i++){
+                    sval = sprintf("%s%g,", sval, value[i][0])
+                }
+            } else {
+                local row
+                for(i = 0; i < rows; i++){
+                    row = ""
+                    for(j = 0; j < cols; j++){
+                        row = sprintf("%s%g,", row, value[i][j])
+                    }
+                    sval = sprintf("%s[%s],", sval, row)
+                }
             }
+            sval = sprintf("[%s]", sval)
         }
-        sval = sprintf("[%s]", sval)
     } else if ((whatis("value")&0x00100000)) {
         sval = sprintf("%g", value)
     } else if ((whatis("value")&0x00200000)) {
@@ -374,6 +378,7 @@ def _sc_set_scan_env() '{
 
 def _sc_report_scan_env() '{
     local scan_desc[]
+    local i plotstr
 
     # Define the original variables for plotting
     scan_desc["type"] = python_repr(_stype)
@@ -383,6 +388,10 @@ def _sc_report_scan_env() '{
     scan_desc["nb_motors"] = python_repr(PLOT_MOTS)
     scan_desc["motor"] = python_repr(motor_mne(_m[0]))
     scan_desc["counter"] = python_repr(PLOT_SEL[0])
+    for (i=1; i<PLOT_NUM; i++)
+      plotstr = sprintf ("%s %s", plotstr, PLOT_SEL[i])
+    scan_desc["ylabel"] = python_repr(plotstr)
+    scan_desc["counter"] = python_repr(plotstr)
 
     # collect the phynx data reported to client_set_scan_env:
     scan_desc["phynx"] = python_repr(_SC_SCAN_DESC)

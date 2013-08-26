@@ -270,7 +270,10 @@ class SpecScanA:
 
             i = scanData['i']
             x = scanData['x']
-            y = scanData[self.scanCounterMne]
+            cnt = self.scanCounterMne.split()
+            y = ''
+            for nn in range(len(cnt)):
+                y = str(scanData[cnt[nn]])+' '+y
 
             try: 
                 if self.__callbacks.get("newPoint"):

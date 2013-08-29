@@ -207,7 +207,6 @@ class SpecConnection:
         self.connected = False
         self.scanport = False
         self.scanname = ''
-        self.aliasedChannels = {}
         self.registeredChannels = {}
         self.registeredReplies = {}
         self.simulationMode = False
@@ -280,21 +279,17 @@ class SpecConnection:
             channel = SpecChannel.SpecChannel(self, chanName, registrationFlag)
             self.registeredChannels[chanName] = channel
             if channel.spec_chan_name != chanName:
-                channel.registered = True
-                def valueChanged(value, chanName=chanName):
-                    channel = self.registeredChannels[chanName]
-                    channel.update(value) #,force=True)
-                self.aliasedChannels[chanName]=valueChanged
-                self.registerChannel(channel.spec_chan_name, valueChanged, registrationFlag, dispatchMode)
+                self.registerChannel(channel.spec_chan_name, channel.update)
+            channel.registered = True
           else:
             channel = self.registeredChannels[chanName]
 
           SpecEventsDispatcher.connect(channel, 'valueChanged', receiverSlot, dispatchMode)
 
-          channelValue = self.registeredChannels[channel.spec_chan_name].value
+          channelValue = self.registeredChannels[channel.spec_chan_name].value #channel.spec_chan_name].value
           if channelValue is not None:
             # we received a value, so emit an update signal
-            channel.update(channelValue,force=True)
+            channel.update(channelValue, force=True)
         except:
           logging.getLogger("SpecClient").exception("Uncaught exception in SpecConnection.registerChannel")
 
@@ -375,7 +370,6 @@ class SpecConnection:
         if self.socket:
             self.socket.close()
         self.registeredChannels = {}
-        self.aliasedChannels = {}
         self.specDisconnected()
 
     def disconnect(self):

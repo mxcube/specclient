@@ -26,8 +26,6 @@ class SpecChannel:
     Signals:
     valueChanged(channelValue, channelName) -- emitted when the channel gets updated
     """
-    #channel_aliases = {}
-
     def __init__(self, connection, channelName, registrationFlag = DOREG):
         """Constructor
 
@@ -83,13 +81,15 @@ class SpecChannel:
         self.isdisconnected = False
 
         if self.registrationFlag == DOREG:
-            self.register()
+            if not self.registered:
+                self.register()
 
 
     def disconnected(self):
         """Reset channel object when Spec gets disconnected."""
         self.value = None
         self.isdisconnected = True
+        self.registered = False
 
 
     def unregister(self):
@@ -127,7 +127,10 @@ class SpecChannel:
                 else:
                     if self.access2 is None:
                         if force or self.value is None or self.value != channelValue[self.access1]: 
-                            self.value = channelValue[self.access1]
+                            if type(channelValue[self.access1]==types.DictType):
+                                self.value = channelValue[self.access1].copy()
+                            else:
+                                self.value = channelValue[self.access1]
                             SpecEventsDispatcher.emit(self, 'valueChanged', (self.value, self.name, ))
                     else:
                         if self.access2 in channelValue[self.access1]:

@@ -127,7 +127,7 @@ class SpecChannel:
                 else:
                     if self.access2 is None:
                         if force or self.value is None or self.value != channelValue[self.access1]: 
-                            if type(channelValue[self.access1]==types.DictType):
+                            if type(channelValue[self.access1])==types.DictType:
                                 self.value = channelValue[self.access1].copy()
                             else:
                                 self.value = channelValue[self.access1]

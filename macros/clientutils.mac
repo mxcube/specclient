@@ -387,9 +387,10 @@ def _sc_report_scan_env() '{
     scan_desc["ylabel"] = python_repr(cnt_name(cnt_num(PLOT_SEL[0])))
     scan_desc["nb_motors"] = python_repr(PLOT_MOTS)
     scan_desc["motor"] = python_repr(motor_mne(_m[0]))
-    scan_desc["counter"] = python_repr(PLOT_SEL[0])
+    plotstr = PLOT_SEL[0]
     for (i=1; i<PLOT_NUM; i++)
       plotstr = sprintf ("%s %s", plotstr, PLOT_SEL[i])
+
     scan_desc["ylabel"] = python_repr(plotstr)
     scan_desc["counter"] = python_repr(plotstr)
 

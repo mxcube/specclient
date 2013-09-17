@@ -81,6 +81,9 @@ class BaseSpecCommand:
         pass
 
 
+    def isConnected(self):
+        return self.isSpecConnected()
+
     def isSpecConnected(self):
         return self.connection is not None and self.connection.isSpecConnected()
 

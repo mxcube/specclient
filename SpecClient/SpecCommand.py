@@ -64,7 +64,6 @@ class BaseSpecCommand:
         self.command = None
         self.connection = None
         self.specVersion = None
-        self.isConnected = self.isSpecConnected #alias
         if command is not None:
             self.setCommand(command)
             

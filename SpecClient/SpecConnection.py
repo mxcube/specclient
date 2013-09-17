@@ -61,38 +61,10 @@ def makeConnection(connection_ref):
        del conn
        connection_greenlet.join() 
 
-
-def process_replies(queue):
-   while True:
-     reply, data, is_error, err = queue.get()
-     
-     try:
-       reply.update(data, is_error, err)
-     except:
-       logging.exception("Could not execute reply.update")
-       continue
-
-
-def process_channels(queue):
-  while True:
-    channel, data, deleted_flag = queue.get()
-
-    try:
-      channel.update(data, deleted_flag)
-    except:
-      logging.exception("Could not execute channel.update")
-      continue
-
 def connectionHandler(connection_ref, socket_to_spec):
    receivedStrings = []
    message = None
    serverVersion = None
-   #replies_queue = gevent.queue.Queue()
-   #channels_queue = gevent.queue.Queue()  
-
-   #process_replies_greenlet = gevent.spawn(process_replies, replies_queue)
-   #process_channels_greenlet = gevent.spawn(process_channels, channels_queue)
-
    socket_to_spec.settimeout(None)
 
    conn = connection_ref()
@@ -238,6 +210,9 @@ class SpecConnection:
 
     def __str__(self):
         return '<connection to Spec, host=%s, port=%s>' % (self.host, self.port or self.scanname)
+
+    def __del__(self):
+        self.disconnect()
 
     def __getattr__(self, attr):
         if attr == 'macro':

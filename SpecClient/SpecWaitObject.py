@@ -36,7 +36,7 @@ def spawn_greenlet(func, *args, **kwargs):
            raise ret
        else:
            return ret
-       setattr(t, "get", types.MethodType(new_get, t))
+    setattr(t, "get", types.MethodType(new_get, t))
 
     return t
 

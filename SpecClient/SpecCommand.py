@@ -113,9 +113,9 @@ class BaseSpecCommand:
         if self.command is None:
             return
 
-        if self.connection is None or not self.connection.isSpecConnected():
-            return
-
+        if self.connection is None:
+            raise SpecClientNotConnectedError
+        
         if self.connection.serverVersion < 3:
             func = False
 
@@ -233,39 +233,43 @@ class SpecCommandA(BaseSpecCommand):
         self._reply_arrived_event.clear()
         self.beginWait()
 
-        if self.connection.serverVersion < 3:
-            id = self.connection.send_msg_cmd_with_return(command)
-        else:
-            if type(command) == types.StringType:
+        with gevent.Timeout(timeout, SpecClientTimeoutError):
+            waiter = SpecWaitObject.SpecWaitObject(self.connection)
+            waiter.waitConnection()
+ 
+            if self.connection.serverVersion < 3:
                 id = self.connection.send_msg_cmd_with_return(command)
             else:
-                id = self.connection.send_msg_func_with_return(command)
+                if type(command) == types.StringType:
+                    id = self.connection.send_msg_cmd_with_return(command)
+                else:
+                    id = self.connection.send_msg_func_with_return(command)
 
-        t = gevent.spawn(wrap_errors(wait_end_of_spec_cmd), self)
+            t = gevent.spawn(wrap_errors(wait_end_of_spec_cmd), self)
 
-        if wait:
-            ret = t.get(timeout = timeout)
-            if isinstance(ret, SpecClientError):
-              raise ret
-            elif isinstance(ret, Exception):
-              self.abort() #abort spec
-              raise
+            if wait:
+                ret = t.get()
+                if isinstance(ret, SpecClientError):
+                  raise ret
+                elif isinstance(ret, Exception):
+                  self.abort() #abort spec
+                  raise
+                else:
+                  return ret
             else:
-              return ret
-        else:
-            t._get = t.get
-            def special_get(self, *args, **kwargs):
-              ret = self._get(*args, **kwargs)
-              if isinstance(ret, SpecClientError):
-                raise ret
-              elif isinstance(ret, Exception):
-                self.abort() #abort spec
-                raise
-              else:
-                return ret
-            setattr(t, "get", types.MethodType(special_get, t))
+                t._get = t.get
+                def special_get(self, *args, **kwargs):
+                  ret = self._get(*args, **kwargs)
+                  if isinstance(ret, SpecClientError):
+                    raise ret
+                  elif isinstance(ret, Exception):
+                    self.abort() #abort spec
+                    raise
+                  else:
+                    return ret
+                setattr(t, "get", types.MethodType(special_get, t))
 
-            return t
+                return t
 
 
     def __call__(self, *args, **kwargs):

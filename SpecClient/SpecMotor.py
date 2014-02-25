@@ -341,6 +341,7 @@ class SpecMotorA:
         c = self.connection.getChannel(self.chanNamePrefix % 'start_one')
         
         c.write(absolutePosition)
+        self._ready_state_event.clear()
 
         if wait:
             self.waitMove(timeout)

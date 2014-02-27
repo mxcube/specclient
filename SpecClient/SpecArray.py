@@ -95,6 +95,8 @@ def SpecArray(data, datatype = ARRAY_CHAR, rows = 0, cols = 0):
 
     if numpy is not None or Numeric is not None:
         if IS_ARRAY(data) :
+            if data.dtype==numpy.int64:
+              data=numpy.array(data,numpy.int32)
             # convert from a Num* array to a SpecArrayData instance
             # (when you send)
             if len(data.shape) > 2:

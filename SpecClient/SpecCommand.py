@@ -311,6 +311,10 @@ class SpecCommandA(BaseSpecCommand):
         self.connection.abort()
 
 
+    def waitReply(self):
+        self._reply_arrived_event.wait()
+        return self._last_reply
+
 
 class SpecCommand(SpecCommandA):
     def __init__(self, *args, **kwargs):

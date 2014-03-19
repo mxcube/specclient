@@ -315,6 +315,9 @@ class SpecCommandA(BaseSpecCommand):
         self._reply_arrived_event.wait()
         return self._last_reply
 
+    def isReplyArrived(self):
+        return self._reply_arrived_event.is_set()
+
 
 class SpecCommand(SpecCommandA):
     def __init__(self, *args, **kwargs):

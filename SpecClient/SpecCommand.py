@@ -272,10 +272,21 @@ class SpecCommandA(BaseSpecCommand):
                 return t
 
 
-    def __call__(self, *args, **kwargs):
-        self.__callback = kwargs.get("callback", None)
-        self.__error_callback = kwargs.get("error_callback", None)
+    def _set_callbacks(self, callback, error_callback):
+        if callable(callback):
+            self.__callback = SpecEventsDispatcher.callableObjectRef(callback)
+        else:
+            self.__callback = None
+        if callable(callback):
+            self.__error_callback = SpecEventsDispatcher.callableObjectRef(error_callback)
+        else:
+            self.__error_callback = None
 
+
+    def __call__(self, *args, **kwargs):
+        callback = kwargs.get("callback", None)
+        error_callback = kwargs.get("error_callback", None)
+        self._set_callbacks(callback, error_callback)
         return BaseSpecCommand.__call__(self, *args, **kwargs)
 
 
@@ -284,15 +295,17 @@ class SpecCommandA(BaseSpecCommand):
 
         if reply.error:
             if callable(self.__error_callback):
+                error_callback = self.__error_callback()
                 try:
-                    self.__error_callback(reply.error)
+                    error_callback(reply.error)
                 except:
                     logging.getLogger("SpecClient").exception("Error while calling error callback (command=%s,spec version=%s)", self.command, self.specVersion)
                 self.__error_callback = None
         else:
             if callable(self.__callback):
+                callback = self.__callback()
                 try:
-                    self.__callback(reply.data)
+                    callback(reply.data)
                 except:
                     logging.getLogger("SpecClient").exception("Error while calling reply callback (command=%s,spec version=%s)", self.command, self.specVersion)
                 self.__callback = None
@@ -310,13 +323,6 @@ class SpecCommandA(BaseSpecCommand):
 
         self.connection.abort()
 
-
-    def waitReply(self):
-        self._reply_arrived_event.wait()
-        return self._last_reply
-
-    def isReplyArrived(self):
-        return self._reply_arrived_event.is_set()
 
 
 class SpecCommand(SpecCommandA):
@@ -338,8 +344,7 @@ class SpecCommand(SpecCommandA):
         self.connection.abort(wait=True)
 
     def __call__(self, *args, **kwargs):
-        self.__callback = kwargs.get("callback", None)
-        self.__error_callback = kwargs.get("error_callback", None)
+        self._set_callbacks(kwargs.get("callback", None), kwargs.get("error_callback", None))
 
         wait = kwargs.get("wait", True)
         timeout = kwargs.get("timeout", None)

@@ -277,7 +277,7 @@ class SpecCommandA(BaseSpecCommand):
             self.__callback = SpecEventsDispatcher.callableObjectRef(callback)
         else:
             self.__callback = None
-        if callable(callback):
+        if callable(error_callback):
             self.__error_callback = SpecEventsDispatcher.callableObjectRef(error_callback)
         else:
             self.__error_callback = None

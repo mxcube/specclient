@@ -153,11 +153,12 @@ class SpecWaitObject:
 
     def replyArrived(self, reply):
         """Callback triggered by a reply from Spec."""
-        self.value = reply.getValue()
         self.spec_reply_arrived_event.set()
 
         if reply.error:
             raise SpecClientError('Server request did not complete: %s' % self.value, reply.error_code)
+        
+        self.value = reply.getValue()
         
 
     def channelUpdated(self, channelValue):

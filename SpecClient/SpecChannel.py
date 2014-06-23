@@ -197,20 +197,17 @@ class SpecChannel:
               #'registered' flag could be set, but before
               #the message with the channel value arrived 
               return self.value
-            else:
-              with gevent.Timeout(timeout, SpecClientTimeoutError):
-                while self.value is None:
-                  time.sleep(0.1)
-              return self.value
-        else:
-            connection = self.connection()
 
-            if connection is not None:
-                # make sure spec is connected, we give a short timeout
-                # because it is supposed to be the case already
-                value = SpecWaitObject.waitReply(connection, 'send_msg_chan_read', (self.spec_chan_name, ), timeout=timeout)
-                self.update(value)
-                return self.value
+        connection = self.connection()
+
+        if connection is not None:
+            # make sure spec is connected, we give a short timeout
+            # because it is supposed to be the case already
+            value = SpecWaitObject.waitReply(connection, 'send_msg_chan_read', (self.spec_chan_name, ), timeout=timeout)
+            if value is None:
+                raise RuntimeError("could not read channel %r" % self.spec_chan_name)
+            self.update(value)
+            return self.value
 
 
     def write(self, value, wait=False):

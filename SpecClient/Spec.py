@@ -5,7 +5,7 @@ a Python object
 """
 
 __author__ = 'Matias Guijarro'
-__version__ = '1.0'
+__version__ = '1.1'
 
 import SpecConnectionsManager
 import SpecEventsDispatcher
@@ -86,6 +86,33 @@ class Spec:
            motorNamesList.append(motor_dict["name"])
        return motorNamesList
 
+    def _getCountersMneNames(self):
+        """Return counters mnemonics and names list."""
+        if self.connection is not None and self.connection.isSpecConnected():
+            get_counter_mnemonics = SpecCommand.SpecCommand('local ca[]; for (i=0; i<COUNTERS; i++) { ca[i][cnt_mne(i)]=cnt_name(i) }; return ca', self.connection)
+
+            counterMne = get_counter_mnemonics()
+            counterList = [None]*len(counterMne)
+            for counter_index, counter_dict in counterMne.iteritems():
+                mne, name = counter_dict.items()[0]
+                counterList[int(counter_index)]={"mne": mne, "name": name }
+            return counterList
+        else:
+            return []
+
+    def getCountersMne(self):
+       """Return counter mnemonics list."""
+       counterMneList = []
+       for counter_dict in self._getCountersMneNames():
+           counterMneList.append(counter_dict["mne"])
+       return counterMneList
+
+    def getCountersNames(self):
+       """Return counters names list."""
+       counterNamesList = []
+       for counter_dict in self._getCountersMneNames():
+           counterNamesList.append(counter_dict["name"])
+       return counterNamesList
 
     def getVersion(self):
         if self.connection is not None:

@@ -25,6 +25,15 @@ ALL_COUNT = "scaler/.all./count"
 class SpecCounterA:
     """SpecCounter class"""
     def __init__(self, specName = None, specVersion = None, callbacks = None, timeout = None):
+         """Constructor
+
+         Keyword arguments:
+         specName -- the name of the counter in Spec (defaults to None)
+         specVersion -- 'host:port' string representing a Spec server to connect to (defaults to None)
+         callbacks -- dict of callbacks. key is callback name; value is a python callable
+                      allowed keys: connected, disconnected, counterStateChanged, counterValueChanged
+         timeout -- optional timeout for connection (defaults to None)
+         """
         self.counterState = NOTINITIALIZED
         self.chanNamePrefix = ""
         self.connection = None

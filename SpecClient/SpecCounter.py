@@ -34,26 +34,26 @@ class SpecCounterA:
                       allowed keys: connected, disconnected, counterStateChanged, counterValueChanged
          timeout -- optional timeout for connection (defaults to None)
          """
-        self.counterState = NOTINITIALIZED
-        self.chanNamePrefix = ""
-        self.connection = None
-        self.type = UNKNOWN
-        self.__old_value = None
-        self.__callbacks = {
+         self.counterState = NOTINITIALIZED
+         self.chanNamePrefix = ""
+         self.connection = None
+         self.type = UNKNOWN
+         self.__old_value = None
+         self.__callbacks = {
             "counterStateChanged": None,
             "counterValueChanged": None,
             "connected": None,
             "disconnected": None,
-        }
-        if callbacks is None:
+         }
+         if callbacks is None:
             callbacks = {}
-        for cb_name in self.__callbacks.iterkeys():
+         for cb_name in self.__callbacks.iterkeys():
             if callable(callbacks.get(cb_name)):
                 self.__callbacks[cb_name] = SpecEventsDispatcher.callableObjectRef(callbacks[cb_name])
 
-        if specName is not None and specVersion is not None:
+         if specName is not None and specVersion is not None:
             self.connectToSpec(specName, specVersion, timeout)
-        else:
+         else:
             self.specName = None
             self.specVersion = None
 

@@ -118,6 +118,16 @@ class SpecChannel:
             self.registered = True
 
 
+    def _coerce(self, value):
+        try:
+            value = int(value)
+        except:
+            try:
+                value = float(value)
+            except:
+                pass
+         return value
+
     def update(self, channelValue, deleted = False,force=False):
         """Update channel's value and emit the 'valueChanged' signal."""
         if type(channelValue) == types.DictType and self.access1 is not None:
@@ -130,7 +140,7 @@ class SpecChannel:
                             if type(channelValue[self.access1])==types.DictType:
                                 self.value = channelValue[self.access1].copy()
                             else:
-                                self.value = channelValue[self.access1]
+                                self.value = self._coerce(channelValue[self.access1])
                             SpecEventsDispatcher.emit(self, 'valueChanged', (self.value, self.name, ))
                     else:
                         if self.access2 in channelValue[self.access1]:
@@ -138,7 +148,7 @@ class SpecChannel:
                                 SpecEventsDispatcher.emit(self, 'valueChanged', (None, self.name, ))
                             else:
                                 if force or self.value is None or self.value != channelValue[self.access1][self.access2]:
-                                    self.value = channelValue[self.access1][self.access2]
+                                    self.value = self._coerce(channelValue[self.access1][self.access2])
                                     SpecEventsDispatcher.emit(self, 'valueChanged', (self.value, self.name, ))
             return
 

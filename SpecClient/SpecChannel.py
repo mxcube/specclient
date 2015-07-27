@@ -126,7 +126,7 @@ class SpecChannel:
                 value = float(value)
             except:
                 pass
-         return value
+        return value
 
     def update(self, channelValue, deleted = False,force=False):
         """Update channel's value and emit the 'valueChanged' signal."""

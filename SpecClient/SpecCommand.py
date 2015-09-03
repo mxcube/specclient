@@ -116,6 +116,8 @@ class BaseSpecCommand:
         if self.connection is None:
             raise SpecClientNotConnectedError
         
+        self.connection.connected_event.wait()
+
         if self.connection.serverVersion < 3:
             func = False
 

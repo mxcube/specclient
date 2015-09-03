@@ -222,7 +222,7 @@ class SpecConnection:
         elif attr == 'abort':
           return getattr(self, "send_msg_abort")
         else:
-          raise AttributeError
+          raise AttributeError("Attribute '%s' unexpected" % attr)
 
     def registerChannel(self, chanName, receiverSlot, registrationFlag = SpecChannel.DOREG, dispatchMode = SpecEventsDispatcher.UPDATEVALUE):
         """Register a channel

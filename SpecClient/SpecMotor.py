@@ -39,6 +39,7 @@ class SpecMotorA:
         self.limits = (None, None)
         self.chanNamePrefix = ''
         self.connection = None
+        self.timeout = timeout
         self.__old_position = None
         # the callbacks listed below can be set directly using the 'callbacks' keyword argument ;
         # when the event occurs, the corresponding callback will be called automatically
@@ -54,10 +55,19 @@ class SpecMotorA:
             self.__callbacks[cb_name] = SpecEventsDispatcher.callableObjectRef(callbacks[cb_name])
 
         if specName is not None and specVersion is not None:
-            self.connectToSpec(specName, specVersion, timeout)
+            self.connectToSpec(specName, specVersion)
         else:
             self.specName = None
             self.specVersion = None
+
+
+    def _read_channel(self, channel_name, timeout=None, force_read=False):
+        channel = self.connection.getChannel(self.chanNamePrefix % channel_name)
+        timeout = self.timeout if timeout is None else timeout
+        if timeout is None:
+            return channel.read(force_read=force_read)
+        else:
+            return channel.read(timeout=timeout, force_read=force_read)
 
 
     def connectToSpec(self, specName, specVersion, timeout=None):
@@ -69,6 +79,7 @@ class SpecMotorA:
         specName -- name of the motor in Spec
         specVersion -- 'host:port' string representing a Spec server to connect to
         """
+        timeout = self.timeout if timeout is None else timeout
         self.specName = specName
         self.specVersion = specVersion
         self.chanNamePrefix = 'motor/%s/%%s' % specName
@@ -237,16 +248,12 @@ class SpecMotorA:
         c.write(offset)
 
 
-    def getOffset(self):
-        c = self.connection.getChannel(self.chanNamePrefix % 'offset')
-
-        return c.read()
+    def getOffset(self, timeout=None):
+        return self._read_channel('offset', timeout=timeout)
 
 
-    def getSign(self):
-        c = self.connection.getChannel(self.chanNamePrefix % 'sign')
-
-        return c.read()
+    def getSign(self, timeout=None):
+        return self._read_channel('sign', timeout=timeout)
 
 
     def __syncQuestion(self, channelValue):
@@ -379,9 +386,8 @@ class SpecMotorA:
         c.write(0)
 
 
-    def getParameter(self, param):
-        c = self.connection.getChannel(self.chanNamePrefix % param)
-        return c.read()
+    def getParameter(self, param, timeout=None):
+        return self._read_channel(param, timeout=timeout)
 
 
     def setParameter(self, param, value):
@@ -389,37 +395,39 @@ class SpecMotorA:
         c.write(value)
 
 
-    def getPosition(self):
+    def getPosition(self, timeout=None):
         """Return the current position of the motor."""
-        c = self.connection.getChannel(self.chanNamePrefix % 'position')
-
-        return c.read()
+        return self._read_channel('position', timeout=timeout)
 
 
-    def getState(self):
+    def getState(self, timeout=None):
         """Return the current motor state."""
         return self.motorState
 
 
-    def getLimits(self):
+    def getLimits(self, timeout=None):
         """Return a (low limit, high limit) tuple in user units."""
-        lims = [x * self.getSign() + self.getOffset() for x in (self.connection.getChannel(self.chanNamePrefix % 'low_limit').read(), \
-                                                                self.connection.getChannel(self.chanNamePrefix % 'high_limit').read())]
+        lims = [ x * self.getSign(timeout=timeout) + self.getOffset(timeout=timeout)
+                 for x in (self._read_channel('low_limit', timeout=timeout), \
+                           self._read_channel('high_limit', timeout=timeout))]
+
         return (min(lims), max(lims))
 
 
-    def getDialPosition(self):
+    def getDialPosition(self, timeout=None):
         """Return the motor dial position."""
-        c = self.connection.getChannel(self.chanNamePrefix % 'dial_position')
-
-        return c.read()
+        return self._read_channel('dial_position', timeout=timeout)
 
 
 class SpecMotor(SpecMotorA):
     """SpecMotor class"""
     def __init__(self, *args, **kwargs): #specName = None, specVersion = None, callbacks={}):
         SpecMotorA.__init__(self, *args, **kwargs)
-        
+
+    def _read_channel(self, channel_name, timeout=None, force_read=True):
+        return SpecMotorA._read_channel(self, channel_name, timeout=timeout,
+                                        force_read=force_read)
+
     def connectToSpec(self, specName, specVersion, timeout=None):
         SpecMotorA.connectToSpec(self, specName, specVersion)
 
@@ -433,19 +441,6 @@ class SpecMotor(SpecMotorA):
         c = self.connection.getChannel(self.chanNamePrefix % 'offset')
 
         c.write(offset, wait=True)
-
-
-    def getOffset(self):
-        c = self.connection.getChannel(self.chanNamePrefix % 'offset')
-
-        return c.read(force_read=True)
-
-
-    def getSign(self):
-        c = self.connection.getChannel(self.chanNamePrefix % 'sign')
-
-        return c.read(force_read=True)
-
 
     def __syncQuestion(self, channelValue):
         """Callback triggered by a 'sync_check' channel update
@@ -493,11 +488,6 @@ class SpecMotor(SpecMotorA):
 
     def stopMoveToLimit(self):
         raise NotImplementedError
-        
-
-    def getParameter(self, param):
-        c = self.connection.getChannel(self.chanNamePrefix % param)
-        return c.read(force_read=True)
 
 
     def setParameter(self, param, value):
@@ -505,29 +495,8 @@ class SpecMotor(SpecMotorA):
         c.write(value, wait=True)
 
 
-    def getPosition(self):
-        """Return the current position of the motor."""
-        c = self.connection.getChannel(self.chanNamePrefix % 'position')
-
-        return c.read(force_read=True)
-
-
-    def getState(self):
+    def getState(self, timeout=None):
         """Return the current motor state."""
-        c = self.connection.getChannel(self.chanNamePrefix % 'move_done')
-        self.motorMoveDone(c.read(force_read=True))
+        value = self._read_channel('move_done', timeout=timeout)
+        self.motorMoveDone(value)
         return self.motorState
-
-
-    def getLimits(self):
-        """Return a (low limit, high limit) tuple in user units."""
-        lims = [x * self.getSign() + self.getOffset() for x in (self.connection.getChannel(self.chanNamePrefix % 'low_limit').read(force_read=True), \
-                                                                self.connection.getChannel(self.chanNamePrefix % 'high_limit').read(force_read=True))]
-        return (min(lims), max(lims))
-
-
-    def getDialPosition(self):
-        """Return the motor dial position."""
-        c = self.connection.getChannel(self.chanNamePrefix % 'dial_position')
-
-        return c.read(force_read=True)

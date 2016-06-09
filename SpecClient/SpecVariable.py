@@ -18,7 +18,8 @@ class SpecVariableA:
     Thin wrapper around SpecChannel objects, to make
     variables watching, setting and getting values easier.
     """
-    def __init__(self, varName = None, specVersion = None, dispatchMode = UPDATEVALUE, prefix=True, callbacks={}):
+    def __init__(self, varName = None, specVersion = None, dispatchMode = UPDATEVALUE,
+                 prefix=True, callbacks={}, timeout=None):
         """Constructor
 
         Keyword arguments:
@@ -26,6 +27,7 @@ class SpecVariableA:
         specVersion -- 'host:port' string representing a Spec server to connect to (defaults to None)
         """
         self.connection = None
+        self.timeout = timeout
         self.dispatchMode = UPDATEVALUE
         self.channelName = ''
         self.__callbacks = {
@@ -135,12 +137,15 @@ class SpecVariableA:
         pass
 
 
-    def getValue(self):
+    def getValue(self, timeout=None):
         """Return the watched variable current value."""
         if self.connection is not None:
+            timeout = self.timeout if timeout is None else timeout
             chan = self.connection.getChannel(self.channelName)
-
-            return chan.read()
+            if timeout is None:
+                return chan.read()
+            else:
+                return chan.read(timeout=timeout)
 
 
     def setValue(self, value):
@@ -161,11 +166,14 @@ class SpecVariable(SpecVariableA):
     Thin wrapper around SpecChannel objects, to make
     variables watching, setting and getting values easier.
     """
-    def getValue(self):
+    def getValue(self, timeout=None):
         """Return the watched variable current value."""
+        timeout = self.timeout if timeout is None else timeout
         chan = self.connection.getChannel(self.channelName)
-
-        return chan.read(force_read=True)
+        if timeout is None:
+            return chan.read(force_read=True)
+        else:
+            return chan.read(timeout=timeout, force_read=True)
 
 
     def setValue(self, value):
